@@ -685,7 +685,8 @@ function traitMove(s,m,t){if(SPECIAL.has(m.k)||m.pr)return true;if(t==='F'&&m.f>
  return false}
 const GOALS={A:'Give check to the enemy King',B:'Capture the enemy King',C:'Win material'};
 // level plan
-function plan(lv){if(lv<=4)return{g:'A',ply:1,ex:[0,1,2,3][lv-1],def:0,trait:false,cat:'check'};
+let RELAX=0;function plan(lv){const q=plan0(lv);if(RELAX){q.relax=RELAX;if(q.cat==='trait'){q.trait=false;q.cat='signature'}}return q}
+function plan0(lv){if(RELAX&&lv>=17){if(lv<=18)return{g:'B',ply:2,ex:1+(lv-17),def:0,cat:'mate2'};return{g:'C',ply:3,ex:4+(lv-19),def:3+(lv-19),trait:false,cat:'combo',tac:true}}if(lv<=4)return{g:'A',ply:1,ex:[0,1,2,3][lv-1],def:0,trait:false,cat:'check'};
  if(lv<=8)return{g:'C',ply:3,ex:2+(lv-5),def:lv-5,trait:false,cat:'capture'};
  if(lv<=12)return{g:lv%2?'A':'C',ply:lv%2?1:3,ex:2+(lv-9),def:lv-9,trait:true,cat:'trait'};
  if(lv<=16)return{g:'C',ply:3,ex:3+(lv-13),def:1+(lv-13),trait:false,cat:'tactic',tac:true};
@@ -698,6 +699,14 @@ function place(r,t,pl){const bd=Array(64).fill(null);const free=()=>{for(;;){con
  let wk=at;if(!E.isK(t)){do wk=free();while((wk>>3)<5);bd[wk]={t:'K',c:'w'}}let bk;do bk=free();while((bk>>3)>3||Math.abs((bk>>3)-(wk>>3))<2&&Math.abs((bk&7)-(wk&7))<2);bd[bk]={t:'K',c:'b'};
  for(let i=0;i<pl.ex;i++){const black=i<pl.def+1||r()<.6;const pool=black?POOLB:POOLW;let pt=pool[r()*pool.length|0];let j=free();if(pt==='P'&&((j>>3)===0||(j>>3)===7))pt='N';bd[j]={t:pt,c:black?'b':'w',s2:pt==='P'?1:0}}
  return{bd,at}}
+function placeDisc(r,t,pl){// piece stands on a line between a white slider and the black king: moving it off gives (discovered) check
+ const bd=Array(64).fill(null);const bk=8+(r()*16|0);const dirs=[[1,0],[0,1],[1,1],[1,-1],[-1,1],[-1,-1]];const[dr,dc]=dirs[r()*dirs.length|0];const k1=2+(r()*2|0),k2=k1+1+(r()*3|0);
+ const sq=k=>{const rr=(bk>>3)+dr*k,cc=(bk&7)+dc*k;return rr<0||rr>7||cc<0||cc>7?-1:rr*8+cc};const a=sq(k1),b=sq(k2);if(a<0||b<0)return null;
+ bd[bk]={t:'K',c:'b'};bd[a]={t,c:'w',s2:P[t].row==='p'?1:0};bd[b]={t:dr&&dc?'B':'R',c:'w'};if(r()<.3)bd[b].t='Q';
+ const free=()=>{for(;;){const j=r()*64|0;if(!bd[j])return j}};if(!E.isK(t)){let wk;do wk=free();while((wk>>3)<5);bd[wk]={t:'K',c:'w'}}
+ for(let i=0;i<pl.ex;i++){const j=free();bd[j]={t:'PNB'[r()*3|0],c:'b',s2:1};if((j>>3)===7||(j>>3)===0)bd[j].t='N'}return{bd,at:a}}
+function finisher(s,m,at){// every black reply allows THE puzzle piece to capture the king
+ const s1=E.applyMove(s,m);for(const r of E.genMoves(s1,'b')){const s2=E.applyMove(s1,r);if(!E.genMoves(s2,'w').some(w=>w.f===at&&s2.bd[w.t]&&E.isK(s2.bd[w.t].t)&&s2.bd[w.t].c==='b'))return false}return true}
 function sane(s){let kw=0,kb=0;for(const p of s.bd)if(p&&E.isK(p.t))p.c==='w'?kw++:kb++;if(kw!==1||kb!==1)return false;if(E.inCheck(s,'w'))return false;if(kingCap(s,'w'))return false;for(const p of s.bd)if(p&&p.t==='P'&&p.c==='b'&&(s.bd.indexOf(p)>>3)===7)return false;return true}
 function placeFork(r,t,pl){// construct: t on X attacks the enemy King and a valuable piece; t starts somewhere that reaches X
  const bd=Array(64).fill(null);const pawnish=P[t].row==='p';const X=8+(r()*40|0);const probe=Array(64).fill(null);probe[X]={t,c:'w',s2:pawnish?1:0};
@@ -714,18 +723,18 @@ function placeMate(r,t,pl){const bd=Array(64).fill(null);const pawnish=P[t].row=
  const near=j=>Math.abs((j>>3)-(bk>>3))<=3&&Math.abs((j&7)-(bk&7))<=3&&Math.max(Math.abs((j>>3)-(bk>>3)),Math.abs((j&7)-(bk&7)))>=2;
  const at=free(j=>near(j)&&(!pawnish||((j>>3)>=1&&(j>>3)<=6)));if(at<0)return null;bd[at]={t,c:'w',s2:pawnish?1:0};
  if(!E.isK(t)){const wk=free(j=>(j>>3)>=4);bd[wk]={t:'K',c:'w'}}
- const helpers=Math.max(0,pl.ex-2);for(let i=0;i<helpers;i++){const black=i<pl.def;let pt=black?'PNB'[r()*3|0]:'RQNB'[r()*4|0];const j=free(j=>black?Math.max(Math.abs((j>>3)-(bk>>3)),Math.abs((j&7)-(bk&7)))<=2:true);if(j<0)continue;if(pt==='P'&&((j>>3)===0||(j>>3)===7))pt='N';bd[j]={t:pt,c:black?'b':'w',s2:pt==='P'?1:0}}
+ const helpers=pl.relax>=2?2:Math.max(0,pl.ex-2);for(let i=0;i<helpers;i++){const black=pl.relax>=2?false:i<pl.def;let pt=black?'PNB'[r()*3|0]:'RQNB'[r()*4|0];const j=free(j=>black?Math.max(Math.abs((j>>3)-(bk>>3)),Math.abs((j&7)-(bk&7)))<=2:true);if(j<0)continue;if(pt==='P'&&((j>>3)===0||(j>>3)===7))pt='N';bd[j]={t:pt,c:black?'b':'w',s2:pt==='P'?1:0}}
  return{bd,at}}
-function candidate(t,lv,r,opt={}){const pl=plan(lv);const pp=pl.tac?placeFork(r,t,pl):pl.g==='B'?placeMate(r,t,pl):place(r,t,pl);if(!pp)return null;const{bd,at}=pp;const s=mk(bd,'w');if(!sane(s))return null;
+function candidate(t,lv,r,opt={}){const pl=plan(lv);const pp=pl.relax&&pl.g==='A'?placeDisc(r,t,pl):pl.tac&&(pl.relax<2||r()<.5)?placeFork(r,t,pl):pl.g==='B'?placeMate(r,t,pl):place(r,t,pl);if(!pp)return null;const{bd,at}=pp;const s=mk(bd,'w');if(!sane(s))return null;
  const all=E.genMoves(s,'w');if(!all.some(m=>m.f===at))return null;let sol=[];
  if(pl.g==='A'){for(const m of all){const s1=E.applyMove(s,m);if(!s1.over&&E.inCheck(s1,'b')&&!kingCap(s1,'b'))sol.push(m)}
-  if(!sol.length||sol.some(m=>m.f!==at&&m.f>=0)||sol.length>3)return null;if(pl.trait&&!sol.every(m=>traitMove(s,m,t)))return null}
+  if(!sol.length||sol.some(m=>m.f!==at&&m.f>=0)||sol.length>(pl.relax?40:3))return null;if(pl.trait&&!sol.every(m=>traitMove(s,m,t)))return null}
  else if(pl.g==='C'){const m0=mat(s),need=lv<=8?1:2,d=pl.ply;const sc=all.map(m=>({m,v:mm(E.applyMove(s,m),d,-1e9,1e9)-m0}));const best=Math.max(...sc.map(x=>x.v));
   if(best<need||best>=900)return null;sol=sc.filter(x=>x.v>=best).map(x=>x.m);if(sol.length>2||sol.some(m=>m.f!==at))return null;
   if(pl.trait&&!sol.every(m=>traitMove(s,m,t)))return null;
-  if(pl.tac&&mm(s,1,-1e9,1e9)-m0>=best)return null;// immediate capture already wins it: not a tactic
-  if(lv>=6&&!sc.some(x=>x.m.x&&x.v<0))return null;// include an unsafe-capture trap
- }else{if(solutionsB(s,1).length)return null;if(pl.ply===3&&forced(s,2))return null;sol=solutionsB(s,pl.ply);if(sol.length!==1||sol[0].f!==at)return null}
+  if(pl.tac&&pl.relax<2&&mm(s,1,-1e9,1e9)-m0>=best)return null;// immediate capture already wins it: not a tactic
+  if(lv>=6&&pl.relax<2&&!sc.some(x=>x.m.x&&x.v<0))return null;// include an unsafe-capture trap
+ }else{if(solutionsB(s,1).length)return null;if(pl.ply===3&&forced(s,2))return null;sol=solutionsB(s,pl.ply);if(!sol.length||sol.length>(pl.relax?2:1))return null;if(sol.some(m=>m.f!==at)){if(pl.relax<2||pl.ply!==2||!sol.every(m=>finisher(s,m,at)))return null}}
  const plaus=all.filter(m=>m.x||E.inCheck(E.applyMove(s,m),'b')).length,npc=bd.filter(Boolean).length;
  const score=({A:0,C:1,B:2}[pl.g])*0+lv*1000+pl.ply*60+plaus*6+npc*4+all.length;
  return{t,lv,g:pl.g,n:pl.ply,cat:pl.cat,bd:enc(bd),sol:sol.map(E.code),score,npc,dens:npc<=4?'open':npc<=6?'semi':'crowded'}}
@@ -736,7 +745,7 @@ function gen(t,lv,seed,budgetMs){const r=rng32(seed);const t0=Date.now();let tri
 function judge(p,s,m,stepsLeft){if(p.g==='A')return p.sol.includes(E.code(m));if(p.g==='C'){if(stepsLeft===p.n&&p.sol.includes(E.code(m)))return true;const m0=p.m0;return mm(E.applyMove(s,m),Math.max(1,stepsLeft-1),-1e9,1e9)-m0>=p.gain}
  const s1=E.applyMove(s,m);if(s1.over==='w')return true;const rs=E.genMoves(s1,'b');return rs.length&&rs.every(r=>{const s2=E.applyMove(s1,r);return s2.over!=='b'&&forced(s2,stepsLeft-1)})}
 function bestReply(s){let best=null,bv=1e9;for(const r of E.genMoves(s,'b')){const v=mm(E.applyMove(s,r),2,-1e9,1e9);if(v<bv){bv=v;best=r}}return best}
-const API={gen,candidate,plan,enc,dec,mat,mm,forced,solutionsB,judge,bestReply,GOALS,traitMove,mk};G.PUZ=API;if(typeof module!=='undefined')module.exports=API})(typeof globalThis!=='undefined'?globalThis:this);
+const API={setRelax(v){RELAX=v},gen,candidate,plan,enc,dec,mat,mm,forced,solutionsB,judge,bestReply,GOALS,traitMove,mk};G.PUZ=API;if(typeof module!=='undefined')module.exports=API})(typeof globalThis!=='undefined'?globalThis:this);
 
 </script>
 
@@ -1028,7 +1037,7 @@ function pzWorker(){if(pzW)return pzW;try{const src=$('engine').textContent+';'+
 let pzReq=0;function startRandom(t,diff){const[lo,hi]=RANGE[diff];const id=++pzReq;show('pzplay');$('pzTitle').textContent=`${P[t].n} · Random · ${diff}`;$('pzBrief').textContent='Generating a fresh puzzle…';$('pzMsg').textContent='';$('pzLesson').textContent='';$('pzBoard').innerHTML='';$('pzNext').classList.add('hide');
  const fallback=async()=>{try{const ps=await loadPz(t);const c=ps.filter(p=>p.lv>=lo&&p.lv<=hi);const p=c[(Math.random()*c.length)|0]||ps[0];startPz(t,{...p,brief:null,lesson:p.lesson},{fixed:false,diff})}catch(e){$('pzBrief').textContent='Could not generate a puzzle.'}};
  const w=pzWorker();if(!w){fallback();return}const to=setTimeout(()=>{if(id===pzReq){pzReq++;fallback()}},6000);
- w.onmessage=e=>{if(e.data.id!==id)return;clearTimeout(to);const r=e.data.r;if(!r){fallback();return}const L={check:'Checks first: scan every line to the King.',capture:'Safe captures only: count attackers and defenders.',trait:`Use the ${P[t].n}'s special trait.`,tactic:'Look for one move that hits two targets.',mate2:'Remove the escape squares, then strike.',mate3:'Keep every move forcing.'};r.lesson=L[r.cat];startPz(t,r,{fixed:false,diff})};
+ w.onmessage=e=>{if(e.data.id!==id)return;clearTimeout(to);const r=e.data.r;if(!r){fallback();return}const L={check:'Checks first: scan every line to the King.',capture:'Safe captures only: count attackers and defenders.',trait:`Use the ${P[t].n}'s special trait.`,tactic:'Look for one move that hits two targets.',mate2:'Remove the escape squares, then strike.',mate3:'Keep every move forcing.',signature:'Know every square the piece controls.',combo:'Forcing moves first, captures last.'};r.lesson=L[r.cat];startPz(t,r,{fixed:false,diff})};
  w.postMessage({id,t,lo,hi,ms:5000})}
 $('hPuz').onclick=()=>{primeVoice();show('puzzles')};$('pmT').onclick=()=>{pmOn=!pmOn;try{localStorage.setItem('gf_pm',pmOn?'1':'0')}catch(e){}if(!pmOn)stopAudio();renderPuzzles()};
 $('pzHintB').onclick=pzHint;$('pzRetry').onclick=pzRetry;$('pzShow').onclick=pzShow;$('pzNext').onclick=pzNext;$('pzBack').onclick=()=>openPzPiece(PZ_.t||pzT);$('pzpBack').onclick=()=>show('puzzles');
