@@ -285,6 +285,8 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
 @media (max-width:400px){#hintBtn .hl2,#gear .gl2{display:none}}
 @media (orientation:landscape) and (max-height:560px){#hintBtn{flex-direction:column;height:auto;padding:8px 4px;gap:2px;font-size:11px;border-radius:14px;margin:0}#hintBtn .hl2{display:inline}}
 #hintL{position:absolute;inset:0;pointer-events:none}
+#promoPick{position:absolute;width:12.5%;z-index:30;display:flex;flex-direction:column;background:rgba(20,22,30,.95);border:2px solid #ffd400;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.6)}#promoPick.up{flex-direction:column-reverse}#promoPick button{aspect-ratio:1;width:100%;padding:4%;border:0;background:none;cursor:pointer;border-radius:6px}#promoPick button:hover,#promoPick button:focus{background:rgba(255,212,0,.25)}#promoPick button svg{width:100%;height:100%}#promoPick .pcx{aspect-ratio:auto;font-size:16px;color:#fff;padding:4px}
+.rtag{font-weight:600}.rtag.rb{color:#7fb3ff}.rtag.rp{color:#ffb36b}.rtag.rx{color:#e0b84f}.tag.rtag.rb{background:rgba(70,130,255,.18)}.tag.rtag.rp{background:rgba(255,150,60,.18)}
 .hintArrow{position:absolute;inset:0;width:100%;height:100%}
 .hintTo{position:absolute;width:12.5%;height:12.5%;box-sizing:border-box;border:4px dashed #ffd400;border-radius:14%;box-shadow:0 0 0 2px rgba(0,0,0,.6),inset 0 0 0 2px rgba(0,0,0,.6);animation:hpulse 1.2s ease-in-out infinite}
 .hintTo.boom{border-color:#ff6a00}
@@ -351,8 +353,9 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
 <div id="coachModal" class="hide" role="dialog" aria-modal="true" aria-label="Coaches"><div class="cmBox"><div class="vhead"><h2 style="flex:1">Coaches</h2><button id="cmClose">✕</button></div><div class="cmBody"></div></div></div>
 <section id="rules" class="card"><h3 style="margin-top:0">Rules &amp; Piece Glossary</h3>
 <p>Each side builds an army of 8 back-row and 8 pawn-row pieces with a <b>40-point budget</b>; exactly one King (free, back row) is mandatory. White moves first.
-<b>Win condition: capture the enemy King.</b> Because abilities (vaults, shots, blasts, freezes) make true checkmate ambiguous, moving into or staying in check is legal; a pulsing red glow warns you when your King is attacked. Draws: 200 plies, threefold repetition, or no legal moves.
-Pawns and Shieldbearers reaching the last rank become Queens. Frozen pieces (blue glow ❄) cannot act on their owner's next turn; if every movable piece is frozen the side passes.
+<b>Piece classes:</b> every piece is either a <b>Back-rank piece</b> (King, Queen, Rook, Bishop, Knight, Vaulter, Warden, Frostcaller, Longbow, Wraith, Bombard, Lancer) or a <b>Second-rank piece</b> (Pawn, Squire, Shieldbearer); each may only be placed in its own rank. The Paladin is promotion-only (a knighted Squire).
+<b>Win condition: capture ALL of the enemy's Kings</b> (usually just one). Because abilities (vaults, shots, blasts, freezes) make true checkmate ambiguous, moving into or staying in check is legal; a pulsing red glow warns you when any of your Kings is attacked. Draws: 200 plies, threefold repetition, or no legal moves.
+<b>Promotion:</b> any piece that started on the second rank (including a Paladin that began as a Squire) that moves onto the far rank promotes to your choice of Queen, Rook, Bishop, Knight or King (pick from the pop-up; ✕ cancels). A Warden swap never promotes. Only the original King may castle; Bombards still cannot destroy Kings. Frozen pieces (blue glow ❄) cannot act on their owner's next turn; if every movable piece is frozen the side passes.
 Board markers: dot = move, red ring = capture, dashed blue = special action (shot, swap, vault-capture, detonate — click the Bombard itself to detonate).
 AI Elo labels are <i>approximate</i> strength tiers for this variant, not calibrated FIDE/online ratings.</p>
 <div class="gl" id="gloss"></div></section>
@@ -360,19 +363,19 @@ AI Elo labels are <i>approximate</i> strength tiers for this variant, not calibr
 <script id="engine">
 (function(G){
 const P={
- K:{n:'King',c:0,col:'#d4a72c',row:'b',d:'Moves 1 square any direction. Can castle with an unmoved Rook (2+ squares away, path clear, not through attack). Lose it and you lose.'},
+ K:{n:'King',c:0,col:'#d4a72c',row:'b',d:'Moves 1 square any direction. Can castle with an unmoved Rook (2+ squares away, path clear, not through attack). Lose ALL your Kings and you lose. Only your original King can castle.'},
  Q:{n:'Queen',c:9,col:'#9aa0a6',row:'b',d:'Slides any distance orthogonally or diagonally.'},
  R:{n:'Rook',c:5,col:'#9aa0a6',row:'b',d:'Slides orthogonally.'},
  B:{n:'Bishop',c:3,col:'#9aa0a6',row:'b',d:'Slides diagonally.'},
  N:{n:'Knight',c:3,col:'#9aa0a6',row:'b',d:'L-shaped leap.'},
- P:{n:'Pawn',c:1,col:'#9aa0a6',row:'p',d:'1 forward (2 from start), captures diagonally forward. Promotes to Queen. Can capture en passant.'},
+ P:{n:'Pawn',c:1,col:'#9aa0a6',row:'p',d:'1 forward (2 from start), captures diagonally forward. Can capture en passant. Second-rank piece: promotes on the far rank.'},
  V:{n:'Vaulter',c:4,col:'#2a9d8f',row:'b',d:'Steps 1 any direction (no capture), or vaults over an adjacent piece to land 2 away; vaulting over an enemy captures it.'},
  W:{n:'Warden',c:3,col:'#9b59b6',row:'b',d:'Moves/captures like a King, or swaps places with any allied piece within 2 squares.'},
  F:{n:'Frostcaller',c:5,col:'#3fa7ff',row:'b',d:'Moves/captures up to 2 squares in a line. After it moves, adjacent enemies are frozen for their next turn.'},
  A:{n:'Longbow',c:5,col:'#27ae60',row:'b',d:'Steps 1 orthogonally (no capture). Shoots: captures an enemy 2-3 squares away in a clear straight line without moving.'},
- S:{n:'Squire',c:2,col:'#e67e22',row:'p',d:'Steps 1 forward or diagonally forward, capturing either way. On its first capture it is knighted into a Paladin.'},
- L:{n:'Paladin',c:6,col:'#f39c12',row:'x',d:'(Promoted Squire) Knight leaps plus slides up to 2 squares in any direction.'},
- H:{n:'Shieldbearer',c:2,col:'#95a5a6',row:'p',d:'Moves and captures 1 square forward or sideways. Immune to Longbow shots and Bombard blasts. Promotes to Queen.'},
+ S:{n:'Squire',c:2,col:'#e67e22',row:'p',d:'Steps 1 forward or diagonally forward, capturing either way. On its first capture it is knighted into a Paladin. Second-rank piece: promotes on the far rank (even as a Paladin).'},
+ L:{n:'Paladin',c:6,col:'#f39c12',row:'x',d:'(Knighted Squire) Knight leaps plus slides up to 2 squares in any direction. Keeps the Squire\'s right to promote on the far rank.'},
+ H:{n:'Shieldbearer',c:2,col:'#95a5a6',row:'p',d:'Moves and captures 1 square forward or sideways. Immune to Longbow shots and Bombard blasts. Second-rank piece: promotes on the far rank.'},
  G:{n:'Wraith',c:4,col:'#8e7cc3',row:'b',d:'Moves diagonally up to 3 squares, passing THROUGH pieces; captures only where it lands.'},
  X:{n:'Bombard',c:4,col:'#e74c3c',row:'b',d:'Steps 1 any direction (no capture). Action: detonate, removing itself and every adjacent piece (both colors) except Kings and Shieldbearers.'},
  C:{n:'Lancer',c:4,col:'#c9a227',row:'b',d:'Knight leaps plus moves/captures 1 square orthogonally.'},
@@ -396,16 +399,23 @@ function validArmy(a){if(a.b.length!==8||a.p.length!==8)return'Need 8+8 pieces';
 function randomArmy(rng=Math.random){for(;;){const backs=Object.keys(P).filter(k=>P[k].row==='b'&&k!=='K'),pw=Object.keys(P).filter(k=>P[k].row==='p');
  let b=[...Array(7)].map(()=>backs[rng()*backs.length|0]);b.splice(3+(rng()*2|0),0,'K');
  const a={b:b.join(''),p:[...Array(8)].map(()=>pw[rng()*pw.length|0]).join('')};if(!validArmy(a)&&armyCost(a)>=34)return a}}
+const RANK={b:'Back-rank piece',p:'Second-rank piece',x:'Promotion only'};
+const PROMO=['Q','R','B','N','K'];
+function fixArmy(a,def){const d=def||PRESETS.Classic,o={b:[...String(a&&a.b||'')].slice(0,8),p:[...String(a&&a.p||'')].slice(0,8)};
+ for(let i=0;i<8;i++){if(!P[o.b[i]]||P[o.b[i]].row!=='b')o.b[i]=d.b[i]==='K'?'N':d.b[i];if(!P[o.p[i]]||P[o.p[i]].row!=='p')o.p[i]=d.p[i]}
+ let ks=o.b.map((t,i)=>t==='K'?i:-1).filter(i=>i>=0);if(!ks.length)o.b[4]='K';else ks.slice(1).forEach(i=>o.b[i]='N');
+ const r={b:o.b.join(''),p:o.p.join('')};let g=0;while(armyCost(r)>BUDGET&&g++<20){const arr=[...r.b];const j=arr.findIndex(t=>t!=='K'&&P[t].c>3);if(j>=0){arr[j]='N';r.b=arr.join('')}else{r.p='PPPPPPPP'}}return r}
+const kings=(bd,c)=>{let n=0;for(let i=0;i<64;i++){const q=bd[i];if(q&&q.t==='K'&&q.c===c)n++}return n};
 const idx=(r,c)=>r*8+c,on=(r,c)=>r>=0&&r<8&&c>=0&&c<8;
 // ---- Zobrist ----
 const TYPES='KQRBNPVWFASLHGXC',TI={};[...TYPES].forEach((t,i)=>TI[t]=i);
 let seed=0x2545F491;const r32=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return seed|0};
-const NK=128,Z1=new Int32Array(64*NK),Z2=new Int32Array(64*NK);for(let i=0;i<Z1.length;i++){Z1[i]=r32();Z2[i]=r32()}
+const NK=256,Z1=new Int32Array(64*NK),Z2=new Int32Array(64*NK);for(let i=0;i<Z1.length;i++){Z1[i]=r32();Z2[i]=r32()}
 const ZT1=r32(),ZT2=r32(),ZE1=new Int32Array(64),ZE2=new Int32Array(64);for(let i=0;i<64;i++){ZE1[i]=r32();ZE2[i]=r32()}
-const zk=(i,p)=>i*NK+TI[p.t]*8+(p.c==='b'?4:0)+(p.z?2:0)+(p.f?1:0);
+const zk=(i,p)=>i*NK+TI[p.t]*16+(p.c==='b'?8:0)+(p.z?4:0)+(p.f?2:0)+(p.s2?1:0);
 function hashFull(s){let a=0,b=0;for(let i=0;i<64;i++){const p=s.bd[i];if(p){const k=zk(i,p);a^=Z1[k];b^=Z2[k]}}if(s.turn==='b'){a^=ZT1;b^=ZT2}if(s.ep>=0){a^=ZE1[s.ep];b^=ZE2[s.ep]}s.h1=a;s.h2=b}
 function newGame(wa,ba){const bd=Array(64).fill(null);
- for(let c=0;c<8;c++){bd[idx(7,c)]={t:wa.b[c],c:'w',f:1};bd[idx(6,c)]={t:wa.p[c],c:'w',f:1};bd[idx(0,c)]={t:ba.b[c],c:'b',f:1};bd[idx(1,c)]={t:ba.p[c],c:'b',f:1};}
+ for(let c=0;c<8;c++){bd[idx(7,c)]={t:wa.b[c],c:'w',f:1};bd[idx(6,c)]={t:wa.p[c],c:'w',f:1,s2:1};bd[idx(0,c)]={t:ba.b[c],c:'b',f:1};bd[idx(1,c)]={t:ba.p[c],c:'b',f:1,s2:1};}
  const s={bd,turn:'w',ply:0,over:null,why:null,ep:-1,epP:-1};hashFull(s);s.hist=[s.h1];return s}
 const clone=s=>({bd:s.bd.map(p=>p&&{...p}),turn:s.turn,ply:s.ply,over:s.over,why:s.why,ep:s.ep===undefined?-1:s.ep,epP:s.epP===undefined?-1:s.epP,h1:s.h1,h2:s.h2,hist:s.hist?s.hist.slice():[]});
 const K8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]],ORTH=K8.slice(0,4),DIAG=K8.slice(4),KN=[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
@@ -441,22 +451,24 @@ function genMoves(s,col,noCastle){const out=[],bd=s.bd;let anyFrozen=false;
    case'X':slide(K8,1,'move');{const x=[i];for(const[dr,dc]of K8){if(!on(r+dr,c+dc))continue;const t=bd[idx(r+dr,c+dc)];if(t&&t.t!=='K'&&t.t!=='H')x.push(idx(r+dr,c+dc))}
     if(x.length>1)out.push({f:i,t:i,k:'ex',x})}break;
   }}
+ for(let n=out.length-1;n>=0;n--){const m=out[n];if(m.k!=='m'&&m.k!=='v')continue;const p=bd[m.f];if(!p.s2)continue;const r=m.t>>3;if(r!==(col==='w'?0:7))continue;
+  out.splice(n,1,...PROMO.map(pr=>({...m,pr})))}
  if(!out.length&&anyFrozen)out.push({f:-1,t:-1,k:'pass'});
  return out}
 // in-place make/unmake
 function make(s,m){const bd=s.bd,col=s.turn,opp=col==='w'?'b':'w',u={sq:[],ep:s.ep,epP:s.epP,turn:col,ply:s.ply,over:s.over,why:s.why,ep:s.ep===undefined?-1:s.ep,epP:s.epP===undefined?-1:s.epP,h1:s.h1,h2:s.h2};
  const set=(i,p)=>{const o=bd[i];u.sq.push(i,o);if(o){const k=zk(i,o);s.h1^=Z1[k];s.h2^=Z2[k]}if(p){const k=zk(i,p);s.h1^=Z1[k];s.h2^=Z2[k]}bd[i]=p};
- for(let i=0;i<64;i++){const q=bd[i];if(q&&q.z&&q.c===col)set(i,{t:q.t,c:q.c,f:q.f})}
+ for(let i=0;i<64;i++){const q=bd[i];if(q&&q.z&&q.c===col)set(i,{t:q.t,c:q.c,f:q.f,s2:q.s2})}
  let kt=false;if(s.ep>=0){s.h1^=ZE1[s.ep];s.h2^=ZE2[s.ep]}s.ep=-1;s.epP=-1;
- if(m.x)for(const x of m.x){const q=bd[x];if(q&&q.t==='K'&&q.c===opp)kt=true;if(q)set(x,null)}
- if(m.k==='sw'){const a=bd[m.f],b=bd[m.t];set(m.t,{t:a.t,c:a.c});set(m.f,{t:b.t,c:b.c})}
+ if(m.x){let hit=false;for(const x of m.x){const q=bd[x];if(q&&q.t==='K'&&q.c===opp)hit=true;if(q)set(x,null)}if(hit&&!kings(bd,opp))kt=true}
+ if(m.k==='sw'){const a=bd[m.f],b=bd[m.t];set(m.t,{t:a.t,c:a.c,s2:a.s2});set(m.f,{t:b.t,c:b.c,s2:b.s2})}
  else if(m.k==='cs'){const k=bd[m.f],rk=bd[m.rf];set(m.f,null);set(m.rf,null);set(m.t,{t:k.t,c:k.c});set(m.rt,{t:rk.t,c:rk.c})}
- else if(m.k==='m'||m.k==='v'){const p=bd[m.f],np={t:p.t,c:p.c};const r=m.t>>3;
-  if((p.t==='P'||p.t==='H')&&(r===0||r===7))np.t='Q';
+ else if(m.k==='m'||m.k==='v'){const p=bd[m.f],np={t:p.t,c:p.c};if(p.s2)np.s2=1;
   if(p.t==='S'&&m.x)np.t='L';
+  if(m.pr){np.t=m.pr;delete np.s2}
   set(m.f,null);set(m.t,np);
   if(p.t==='P'&&Math.abs(m.t-m.f)===16){s.ep=(m.t+m.f)>>1;s.epP=m.t;s.h1^=ZE1[s.ep];s.h2^=ZE2[s.ep]}
-  if(p.t==='F'){const rr=m.t>>3,cc=m.t&7;for(const[dr,dc]of K8)if(on(rr+dr,cc+dc)){const j=idx(rr+dr,cc+dc),t=bd[j];if(t&&t.c===opp&&!t.z)set(j,{t:t.t,c:t.c,f:t.f,z:1})}}}
+  if(p.t==='F'){const rr=m.t>>3,cc=m.t&7;for(const[dr,dc]of K8)if(on(rr+dr,cc+dc)){const j=idx(rr+dr,cc+dc),t=bd[j];if(t&&t.c===opp&&!t.z)set(j,{t:t.t,c:t.c,f:t.f,s2:t.s2,z:1})}}}
  s.ply++;s.turn=opp;s.h1^=ZT1;s.h2^=ZT2;if(kt){s.over=col;s.why='king'}
  return u}
 function unmake(s,u){const sq=u.sq;for(let k=sq.length-2;k>=0;k-=2)s.bd[sq[k]]=sq[k+1];s.turn=u.turn;s.ply=u.ply;s.over=u.over;s.why=u.why;s.ep=u.ep;s.epP=u.epP;s.h1=u.h1;s.h2=u.h2}
@@ -465,32 +477,36 @@ function applyMove(s0,m){const s=clone(s0);make(s,m);s.hist.push(s.h1);
   else if(s.hist.filter(h=>h===s.h1).length>=3){s.over='draw';s.why='repetition'}
   else if(!genMoves(s,s.turn).length){s.over='draw';s.why='nomoves'}}
  return s}
-function attackersOnKing(s,col){const opp=col==='w'?'b':'w';const k=s.bd.findIndex(p=>p&&p.t==='K'&&p.c===col);if(k<0)return[];
- return genMoves(s,opp).filter(m=>m.x&&m.x.includes(k)).map(m=>m.f)}
+function kingSquares(s,col){const r=[];for(let i=0;i<64;i++){const p=s.bd[i];if(p&&p.t==='K'&&p.c===col)r.push(i)}return r}
+function attackersOnKing(s,col,sq){const opp=col==='w'?'b':'w';const ks=sq!=null?[sq]:kingSquares(s,col);if(!ks.length)return[];
+ return genMoves(s,opp).filter(m=>m.x&&m.x.some(x=>ks.includes(x))).map(m=>m.f)}
+function checkedKings(s,col){const ks=kingSquares(s,col);if(!ks.length)return[];const opp=col==='w'?'b':'w';const hit=new Set();for(const m of genMoves(s,opp))if(m.x)for(const x of m.x)if(ks.includes(x))hit.add(x);return[...hit]}
 const inCheck=(s,col)=>attackersOnKing(s,col).length>0;
 // ---- Engine ----
 const VAL={K:0,Q:900,R:500,B:330,N:320,P:100,V:380,W:290,F:520,A:470,S:190,L:620,H:180,G:400,X:340,C:400};
 const CEN={K:0,Q:2,R:1,B:3,N:6,P:0,V:4,W:3,F:5,A:2,S:0,L:4,H:0,G:3,X:4,C:6};
 const WIN=1e6,KC={m:0,v:1,sw:2,sh:3,ex:4,pass:5,cs:6};
-const code=m=>(m.f+1)*1000+(m.t+1)*10+KC[m.k];
+const PRI={Q:1,R:2,B:3,N:4,K:5};const code=m=>((m.f+1)*1000+(m.t+1)*10+KC[m.k])*6+(m.pr?PRI[m.pr]:0);
 const TTB=18,TTM=(1<<TTB)-1,TT2=new Int32Array(1<<TTB),TTd=new Int8Array(1<<TTB),TTf=new Int8Array(1<<TTB),TTv=new Int32Array(1<<TTB),TTm=new Int32Array(1<<TTB),TTk=new Uint8Array(1<<TTB);
-const HH=new Int32Array(70000);
+const HH=new Int32Array(400000);const XK=350;
 let cfg,nodes,deadline,stop,killers,path,reps;
-function capInfo(s,m,col){let v=0;if(m.x)for(const x of m.x){const q=s.bd[x];if(!q)continue;if(q.t==='K'&&q.c!==col)return 1e7;v+=q.c===col?-(VAL[q.t]+(q.t==='K'?WIN:0)):VAL[q.t]}return v}
+function capInfo(s,m,col){let v=0;if(m.x)for(const x of m.x){const q=s.bd[x];if(!q)continue;if(q.t==='K'){const n=kings(s.bd,q.c);if(q.c!==col){if(n<=1)return 1e7;v+=XK}else v-=n<=1?WIN:XK;continue}v+=q.c===col?-VAL[q.t]:VAL[q.t]}if(m.pr)v+=VAL[m.pr]-VAL[s.bd[m.f].t]+(m.pr==='K'?XK:0);return v}
 function order(s,ms,ttm,ply){const col=s.turn,k=killers[ply]||[];
  for(const m of ms){const c=code(m);m.cd=c;let sc;
   if(m.x){m.cv=capInfo(s,m,col);sc=m.cv>=1e7?3e7:1e6+m.cv*10-(m.f>=0?VAL[s.bd[m.f].t]/10:0)}
   else{m.cv=0;sc=c===k[0]?9e5:c===k[1]?8e5:HH[c]}
+  if(m.pr&&!m.x)sc=(m.pr==='Q'?9.5e5:4e5)+VAL[m.pr];else if(m.pr)sc+=m.pr==='Q'?5:0;
   if(c===ttm)sc=2e7+(m.cv>=1e7?1e7:0);m.sc=sc}
  ms.sort((a,b)=>b.sc-a.sc)}
 function evaluate(s,ms){const bd=s.bd,stm=s.turn,opp=stm==='w'?'b':'w';let w=0,nonPawn=0;const kp={w:-1,b:-1};
- for(let i=0;i<64;i++){const p=bd[i];if(!p)continue;if(p.t==='K'){kp[p.c]=i;continue}
+ const kn={w:0,b:0};for(let i=0;i<64;i++){const p=bd[i];if(!p)continue;if(p.t==='K'){if(kp[p.c]<0||p.f)kp[p.c]=i;kn[p.c]++;continue}
   const r=i>>3,c=i&7;let v=VAL[p.t];if(p.t!=='P'&&p.t!=='S'&&p.t!=='H')nonPawn+=v;
   v+=CEN[p.t]*((3.5-Math.abs(r-3.5))+(3.5-Math.abs(c-3.5)))*2;
   if(p.t==='P'||p.t==='S'||p.t==='H'){const adv=p.c==='w'?6-r:r-1;v+=adv*adv*(p.t==='S'?3:4)+(c>1&&c<6?6:0)}
   if(p.t==='X'){for(const[dr,dc]of K8)if(on(r+dr,c+dc)){const q=bd[idx(r+dr,c+dc)];if(q&&q.t!=='K'&&q.t!=='H')v+=q.c!==p.c?VAL[q.t]/8:-VAL[q.t]/12}}
   if(p.z)v-=25;
   w+=p.c==='w'?v:-v}
+ w+=(Math.max(0,kn.w-1)-Math.max(0,kn.b-1))*XK;
  const mid=nonPawn>2500;
  for(const col of['w','b']){const k=kp[col];if(k<0)continue;const kr=k>>3,kc=k&7;let sc=0;
   if(mid)sc-=Math.abs(kr-(col==='w'?7:0))*15;
@@ -506,11 +522,11 @@ function tick(){if((++nodes&511)===0&&Date.now()>deadline)stop=true;return stop}
 function isRep(s){return reps.has(s.h1)||path.includes(s.h1)}
 function qs(s,a,b,ply,qd){if(s.over)return-WIN+ply;if(tick())return 0;
  const ms=genMoves(s,s.turn);
- for(const m of ms)if(m.x)for(const x of m.x){const q=s.bd[x];if(q&&q.t==='K'&&q.c!==s.turn)return WIN-ply-1}
+ for(const m of ms)if(m.x&&capInfo(s,m,s.turn)>=1e7)return WIN-ply-1
  const stand=evaluate(s,ms);if(!cfg.q||qd>=6)return stand;
  if(stand>=b)return stand;if(stand>a)a=stand;
  const caps=ms.filter(m=>m.x);order(s,caps,0,ply);
- for(const m of caps){if(m.cv<=0)continue;if(stand+m.cv+200<a)continue;
+ for(const m of caps){if(m.cv<=0||(m.pr&&m.pr!=='Q'))continue;if(stand+m.cv+200<a)continue;
   const u=make(s,m);const v=-qs(s,-b,-a,ply+1,qd+1);unmake(s,u);if(stop)return 0;if(v>=b)return v;if(v>a)a=v}
  return a}
 function nm(s,d,a,b,ply){if(s.over)return-WIN+ply;if(isRep(s))return 0;
@@ -530,7 +546,7 @@ function think(s0,lvId,opt={}){const t0=Date.now();cfg=opt.cfg||LEVELS.find(l=>l
  reps=new Set(s.hist||[]);reps.delete(s.h1);
  const ms=genMoves(s,s.turn);if(!ms.length)return null;
  order(s,ms,-1,0);
- const res=(m,depth,score)=>({move:{f:m.f,t:m.t,k:m.k,x:m.x,rf:m.rf,rt:m.rt,ep:m.ep},depth,score,nodes,ms:Date.now()-t0});
+ const res=(m,depth,score)=>({move:{f:m.f,t:m.t,k:m.k,x:m.x,rf:m.rf,rt:m.rt,ep:m.ep,pr:m.pr},depth,score,nodes,ms:Date.now()-t0});
  if(ms[0].cv>=1e7)return res(ms[0],0,WIN);
  if(rng()<cfg.blunder)return res(ms[rng()*ms.length|0],0,0);
  let best=ms[0],bestScore=0,scores=null,done=0;
@@ -547,7 +563,7 @@ function think(s0,lvId,opt={}){const t0=Date.now();cfg=opt.cfg||LEVELS.find(l=>l
   const v=ms[i].v+(rng()+rng()-1)*cfg.noise;if(ms[i].v>-WIN+100&&v>bv){bv=v;bi=i}}best=ms[bi];bestScore=best.v}
  return res(best,done,bestScore)}
 const sqName=i=>'abcdefgh'[i&7]+(8-(i>>3));
-const API={P,PRESETS,LEVELS,BUDGET,MAXPLY,newGame,genMoves,applyMove,inCheck,attackersOnKing,validArmy,armyCost,randomArmy,think,sqName,code,clone};
+const API={RANK,PROMO,fixArmy,kingSquares,checkedKings,P,PRESETS,LEVELS,BUDGET,MAXPLY,newGame,genMoves,applyMove,inCheck,attackersOnKing,validArmy,armyCost,randomArmy,think,sqName,code,clone};
 G.GF=API;if(typeof module!=='undefined')module.exports=API;
 })(typeof globalThis!=='undefined'?globalThis:this);
 
@@ -599,18 +615,18 @@ let S,hist=[],logs=[],caps={w:[],b:[]},sel=null,last=null,flipped=false,aiToken=
 const lvName=id=>{if(id&&id.startsWith('coach:')){const c=coachById(id.slice(6));return c?`${c.name} (coach · ~${c.elo})`:'Coach'}const l=LV.find(l=>l.id===id);return l?`${l.name} (~${l.elo})`:'Human'};
 // ---------- Builder ----------
 function renderBuilder(){let h='';
- for(const side of['w','b']){const a=armies[side],err=E.validArmy(a),cost=E.armyCost(a);
+ for(const side of['w','b']){armies[side]=E.fixArmy(armies[side]);const a=armies[side],err=E.validArmy(a),cost=E.armyCost(a);
   h+=`<div class="card army"><h3><span><span class="dot ${side}" style="display:inline-block;vertical-align:-2px"></span> ${side==='w'?'White':'Black'} army</span>
   <select data-player="${side}"><option value="human">Human</option>${LV.map(l=>`<option value="${l.id}">AI · ${l.name} (~${l.elo} Elo)</option>`).join('')}${coachById(coachId)?`<option value="coach:${coachId}">Your coach · ${coachById(coachId).name} (~${coachById(coachId).elo} Elo)</option>`:''}</select></h3>
   <div class="meter ${cost>E.BUDGET?'over':''}"><i style="width:${Math.min(100,cost/E.BUDGET*100)}%"></i></div>
   <div>${cost} / ${E.BUDGET} pts ${err?`<span class="err">⚠ ${err}</span>`:'<span class="ok">✔ valid</span>'}</div>`;
-  for(const row of(side==='w'?['p','b']:['b','p'])){h+=`<div class="rowlbl">${row==='b'?'Back row':'Pawn row'}</div><div class="slots">`;
+  for(const row of(side==='w'?['p','b']:['b','p'])){h+=`<div class="rowlbl">${row==='b'?'Back rank · Back-rank pieces only':'Second rank · Second-rank pieces only'}</div><div class="slots">`;
    for(let i=0;i<8;i++){const t=a[row][i],on=editing.side===side&&editing.row===row&&editing.i===i;
     h+=`<div class="slot${on?' on':''}" data-s="${side}" data-r="${row}" data-i="${i}" title="${P[t].n}">${svgPiece(t,side)}<span class="cost">${P[t].c||''}</span></div>`}h+='</div>'}
   h+=`<div style="margin-top:10px">${Object.keys(E.PRESETS).map(n=>`<button data-preset="${n}" data-s="${side}">${n}</button>`).join(' ')} <button data-rand="${side}">🎲 Random</button></div></div>`}
  const row=editing.row;
  h+=`<div class="card" style="grid-column:1/-1"><h3 style="margin:0">Palette <small style="color:var(--mut);font-weight:400">— choosing for ${editing.side==='w'?'White':'Black'} ${row==='b'?'back row':'pawn row'} slot ${'abcdefgh'[editing.i]}. Click a slot, then a piece.</small></h3>
- <div class="palette">${Object.entries(P).filter(([k,p])=>p.row===row).map(([k,p])=>`<div class="pal" data-pick="${k}" title="${p.d}">${svgPiece(k,editing.side)}<div><b>${p.n}</b><small>${p.c} pts</small></div></div>`).join('')}</div>
+ <div class="palette">${Object.entries(P).filter(([k,p])=>p.row===row).map(([k,p])=>`<div class="pal" data-pick="${k}" title="${p.d}">${svgPiece(k,editing.side)}<div><b>${p.n}</b><small>${p.c} pts · <span class="rtag r${p.row}">${E.RANK[p.row]}</span></small></div></div>`).join('')}</div>
  <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">${coachById(coachId)?`<button id="bVsCoach">⚔ Play vs ${coachById(coachId).name}</button>`:''}<button data-go="home">⌂ Home</button><button class="primary" id="start">Start Game ▶</button><span style="color:var(--mut);font-size:13px">Pick Human or an AI level per side (AI vs AI works too).</span></div><h3 style="margin:14px 0 0">Board theme</h3>${themeGrid()}</div>`;
  const b=$('builder');b.innerHTML=h;bindThemes();bindGo(b);const vc=$('bVsCoach');if(vc)vc.onclick=()=>{players.w='human';players.b='coach:'+coachId;renderBuilder()};
  b.querySelectorAll('[data-player]').forEach(e=>{e.value=players[e.dataset.player];e.onchange=()=>players[e.dataset.player]=e.value});
@@ -629,12 +645,12 @@ function renderPlayers(){const top=flipped?'w':'b',bot=flipped?'b':'w';gStat();
  for(const[el,c]of[[$('pTop'),top],[$('pBot'),bot]]){el.className='player'+(!S.over&&S.turn===c?' active':'');
   el.innerHTML=`<span class="dot ${c}"></span><div><div class="nm">${c==='w'?'White':'Black'}${thinking===c?'<span class="think"></span>':''}</div><div class="lv">${lvName(players[c])}${aiInfo[c]?' · '+aiInfo[c]:''}</div></div>
   <div class="caps">${caps[c].map(t=>svgPiece(t,c==='w'?'b':'w')).join('')}</div>`}}
-function render(anim){const ms=sel!=null?E.genMoves(S,S.turn).filter(m=>m.f===sel):[];
- const chk=!S.over?E.inCheck(S,S.turn):false,kSq=S.bd.findIndex(p=>p&&p.t==='K'&&p.c===S.turn);
+function render(anim){closePromo();const ms=sel!=null?E.genMoves(S,S.turn).filter(m=>m.f===sel):[];
+ const ckS=!S.over?E.checkedKings(S,S.turn):[],chk=ckS.length>0;
  let h='';for(let vr=0;vr<8;vr++)for(let vc=0;vc<8;vc++){const r=flipped?7-vr:vr,c=flipped?7-vc:vc,i=r*8+c,m=ms.filter(m=>m.t===i);
   let cl='sq '+((r+c)%2?'d':'l');if(last&&(last.f===i||last.t===i))cl+=' last';if(i===sel)cl+=' sel';
   if(m.length){const k=m[0];cl+=(k.k==='m'&&!k.x)||(k.k==='v'&&!k.x)||k.k==='cs'?' hl':k.k==='m'?' cap':' spc'}
-  if(chk&&i===kSq)cl+=' chk';
+  if(ckS.includes(i))cl+=' chk';
   h+=`<div class="${cl}" data-q="${i}">${vc===0?`<span class="co rk">${8-r}</span>`:''}${vr===7?`<span class="co fl">${'abcdefgh'[c]}</span>`:''}</div>`}
  $('squares').innerHTML=h;$('squares').querySelectorAll('.sq').forEach(e=>e.onclick=()=>click(+e.dataset.q));
  // pieces
@@ -650,14 +666,14 @@ function render(anim){const ms=sel!=null?E.genMoves(S,S.turn).filter(m=>m.f===se
  // status
  const st=$('status');st.className='';
  if(S.over){if(S.over==='draw')st.textContent='Draw — '+({limit:'move limit reached',repetition:'threefold repetition',nomoves:'no legal moves'}[S.why]||'');
-  else{st.textContent=(S.over==='w'?'White':'Black')+' wins by capturing the King! 👑';st.className='win'}}
+  else{st.textContent=(S.over==='w'?'White':'Black')+' wins by capturing '+(hist.length&&hist[hist.length-1].S.bd.filter(p=>p&&p.t==='K'&&p.c!==S.over).length>1?'all the Kings':'the King')+'! 👑';st.className='win'}}
  else st.textContent=(S.turn==='w'?'White':'Black')+' to move'+(chk?' — CHECK!':'');
  renderPlayers();
  let lg='';for(let i=0;i<logs.length;i+=2)lg+=`<span class="n">${i/2+1}.</span><span>${logs[i]}</span><span>${logs[i+1]||''}</span>`;$('log').innerHTML=lg;$('log').scrollTop=1e9;
  const sp=sel!=null&&S.bd[sel];$('info').innerHTML=sp?`${svgPiece(sp.t,sp.c)}<div><b>${P[sp.t].n}</b><br>${P[sp.t].d}</div>`:'<div>Select a piece to see its moves and abilities.</div>';drawHint()}
 function fx(cls,i,extra){const[r,c]=disp(i);const e=document.createElement('div');e.className='fxe '+cls;e.style.left=c*12.5+'%';e.style.top=r*12.5+'%';if(extra)extra(e);$('fx').appendChild(e);setTimeout(()=>e.remove(),900)}
 function moveText(s,m){if(m.k==='pass')return'— pass (frozen)';const p=s.bd[m.f],ic=svgPiece(p.t,p.c),n=E.sqName;
- return ic+(m.k==='cs'?((m.t&7)>(m.f&7)?'O-O':'O-O-O'):m.k==='sw'?n(m.f)+'⇄'+n(m.t):m.k==='sh'?n(m.f)+'➶'+n(m.t):m.k==='ex'?n(m.f)+' 💥'+(m.x.length-1):n(m.f)+(m.x?'×':'–')+n(m.t))}
+ return ic+(m.k==='cs'?((m.t&7)>(m.f&7)?'O-O':'O-O-O'):m.k==='sw'?n(m.f)+'⇄'+n(m.t):m.k==='sh'?n(m.f)+'➶'+n(m.t):m.k==='ex'?n(m.f)+' 💥'+(m.x.length-1):n(m.f)+(m.x?'×':'–')+n(m.t)+(m.pr?'='+m.pr:''))}
 function doMove(m){const pre=S,col=pre.turn;hist.push({S,logs:[...logs],caps:{w:[...caps.w],b:[...caps.b]},last,aiInfo:{...aiInfo}});
  logs.push(moveText(pre,m));const dead=[];
  for(const x of m.x||[]){const q=pre.bd[x];if(q&&!(m.k==='ex'&&x===m.f&&false)){dead.push({i:x,t:q.t,c:q.c});caps[q.c===col?(col==='w'?'b':'w'):col].push(q.t)}}
@@ -675,10 +691,16 @@ function doMove(m){const pre=S,col=pre.turn;hist.push({S,logs:[...logs],caps:{w:
  if(S.over&&S.over!=='draw')setTimeout(SND.win,300);else if(!S.over&&E.inCheck(S,S.turn))setTimeout(SND.check,250);
  setTimeout(nextTurn,380)}
 function click(i){if(!S||S.over||isAI(S.turn)||thinking)return;actx();const p=S.bd[i];
- if(sel!=null){const cand=E.genMoves(S,S.turn).filter(m=>m.f===sel&&m.t===i);if(cand.length){doMove(cand[0]);return}}
+ if(sel!=null){const cand=E.genMoves(S,S.turn).filter(m=>m.f===sel&&m.t===i);if(cand.length){if(cand.length>1&&cand.every(m=>m.pr)){promoPick(i,cand);return}doMove(cand[0]);return}}
  if(p&&p.c===S.turn){if(p.z){$('info').innerHTML='<div>❄ That piece is frozen this turn.</div>';sel=null;return}sel=sel===i&&!E.genMoves(S,S.turn).some(m=>m.f===i&&m.t===i)?null:i}else sel=null;
  const pass=E.genMoves(S,S.turn);if(pass.length===1&&pass[0].k==='pass'){doMove(pass[0]);return}
  render()}
+function promoPick(i,cand){closePromo();const[r,c]=disp(i),up=r>3,d=document.createElement('div');d.id='promoPick';d.className=up?'up':'';
+ d.style.left=c*12.5+'%';d.style[up?'bottom':'top']=(up?(7-r):r)*12.5+'%';const col=S.turn;
+ d.innerHTML=E.PROMO.map(t=>`<button data-pr="${t}" title="Promote to ${P[t].n}" aria-label="Promote to ${P[t].n}">${svgPiece(t,col)}</button>`).join('')+'<button data-pr="x" class="pcx" title="Cancel" aria-label="Cancel promotion">✕</button>';
+ d.querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();const pr=b.dataset.pr;closePromo();if(pr==='x'){sel=null;render();return}const m=cand.find(m=>m.pr===pr);if(m)doMove(m)});
+ $('board').appendChild(d)}
+function closePromo(){const o=$('promoPick');if(o)o.remove()}
 // ---------- AI (Web Worker with sync fallback) ----------
 let worker=null,workerFailed=false,pending=null;
 function makeWorker(){try{const src=$('engine').textContent+';onmessage=function(e){var r=GF.think(e.data.s,e.data.lv,{cfg:e.data.cfg});postMessage({id:e.data.id,r:r})}';
@@ -743,7 +765,7 @@ function setAnim(on,user){anim=on;document.body.classList.toggle('noanim',!on);d
 $('animBtn').onclick=()=>setAnim(!anim,true);setAnim(anim);
 
 $('themeHdr').outerHTML=themeSelect();setTheme(theme);
-$('gloss').innerHTML=Object.entries(P).map(([k,p])=>`<div>${svgPiece(k,'w')}${svgPiece(k,'b')}<span><b>${p.n}</b> <small style="color:var(--mut)">${p.row==='x'?'promotion only':p.c+' pts · '+(p.row==='b'?'back row':'pawn row')}</small><br>${p.d}</span></div>`).join('');
+$('gloss').innerHTML=Object.entries(P).map(([k,p])=>`<div>${svgPiece(k,'w')}${svgPiece(k,'b')}<span><b>${p.n}</b> <small style="color:var(--mut)">${p.row==='x'?'':p.c+' pts · '}<span class="rtag r${p.row}">${E.RANK[p.row]}</span></small><br>${p.d}</span></div>`).join('');
 
 window.GFUI={get S(){return S},players,armies,start,doMove,click,get thinking(){return thinking}};
 
@@ -770,8 +792,8 @@ $('hStart').onclick=()=>{actx();players.w='human';players.b=lsGet('gf_ailevel','
 $('hGuide').onclick=()=>show('guide');$('hOpts').onclick=()=>show('options');
 $('homeBoard').innerHTML=Array.from({length:64},(_,i)=>`<div class="sq ${((i>>3)+(i&7))%2?'d':'l'}"></div>`).join('');
 // ---------- Piece guide ----------
-const NOTES={K:'Free and mandatory (exactly one, back row). Losing it loses the game. Can castle with an unmoved Rook.',P:'Promotes to a Queen on the last rank. Can move 2 on its first move and capture en passant.',
- S:'Promotion: on its first capture it is knighted into a Paladin.',L:'Cannot be bought: only appears when a Squire captures.',H:'Promotes to a Queen on the last rank. Immune to Longbow shots and Bombard blasts.',
+const NOTES={K:'Back-rank piece. Free and mandatory (exactly one in your army). You lose only when ALL your Kings are captured (extra Kings can come from promotion). Only your original, unmoved King can castle with an unmoved Rook.',P:'Second-rank piece. On reaching the far rank it promotes to your choice of Queen, Rook, Bishop, Knight or King. Can move 2 on its first move and capture en passant.',
+ S:'Second-rank piece. On its first capture it is knighted into a Paladin. On reaching the far rank it promotes to your choice of Queen, Rook, Bishop, Knight or King.',L:'Cannot be bought: only appears when a Squire captures. A Paladin that began as a Squire keeps the right to promote on the far rank.',H:'Second-rank piece. On reaching the far rank it promotes to your choice of Queen, Rook, Bishop, Knight or King. Immune to Longbow shots and Bombard blasts.',
  F:'Freeze lasts for the opponent\'s next turn only. Frozen pieces glow blue.',X:'Detonating removes the Bombard too. Kings and Shieldbearers survive the blast.',A:'Shots stop at the first piece in the line; Shieldbearers block but cannot be shot.',
  G:'Ghostly: pieces in its path do not block it.',W:'Swapping is a full move; the swapped ally lands on the Warden\'s square.',V:'Vaulting over your own piece is a move; vaulting over an enemy captures it.'};
 const LEG={mv:'Move',cp:'Capture',vt:'Vault (jump)',vc:'Vault capture',sw:'Swap with ally',sh:'Ranged shot (stays put)',bl:'Blast radius',fz:'Freeze area (after the shown move)',org:'Starting square'};
@@ -803,10 +825,10 @@ function miniBoard(t){const{s,at,mk,demo}=guideData(t);let h='<div class="mini">
  h+='</div>';const used=new Set();Object.values(mk).forEach(st=>st.forEach(k=>used.add(k)));
  h+='<div class="legend">'+[...used].map(k=>`<span><i class="mk ${k}"></i>${LEG[k]}</span>`).join('')+'</div>';return h}
 const ORDER='KQRBNPVWFASLHGXC';
-function renderGuide(){$('gcards').innerHTML=[...ORDER].map(t=>`<div class="gc" data-gt="${t}">${svgPiece(t,'w')}<b>${P[t].n}</b><small>${P[t].row==='x'?'promotion':P[t].c+' pts · '+(P[t].row==='b'?'back row':'pawn row')}</small></div>`).join('');
+function renderGuide(){$('gcards').innerHTML=[...ORDER].map(t=>`<div class="gc" data-gt="${t}">${svgPiece(t,'w')}<b>${P[t].n}</b><small>${P[t].row==='x'?'':P[t].c+' pts · '}<span class="rtag r${P[t].row}">${E.RANK[P[t].row]}</span></small></div>`).join('');
  $('gcards').querySelectorAll('.gc').forEach(e=>e.onclick=()=>openPiece(e.dataset.gt))}
 function openPiece(t){const p=P[t];$('gdName').textContent=p.n;
- $('gdBody').innerHTML=`<div class="gd"><div class="gdArt">${svgPiece(t,'w')}<div class="tags"><span class="tag">${p.row==='x'?'Promotion only':p.c+' points'}</span><span class="tag">${p.row==='b'?'Back row':p.row==='p'?'Pawn row':'From Squire'}</span>${'KQRBNP'.includes(t)?'<span class="tag">Standard</span>':'<span class="tag">Custom</span>'}</div></div>
+ $('gdBody').innerHTML=`<div class="gd"><div class="gdArt">${svgPiece(t,'w')}<div class="tags"><span class="tag">${p.row==='x'?'Promotion only':p.c+' points'}</span><span class="tag rtag r${p.row}">${E.RANK[p.row]}</span>${p.row==='p'||t==='L'?'<span class="tag">Can promote</span>':''}${'KQRBNP'.includes(t)?'<span class="tag">Standard</span>':'<span class="tag">Custom</span>'}</div></div>
  <div><p style="font-size:16px;line-height:1.5"><b>How it moves:</b> ${p.d}</p>${NOTES[t]?`<p class="mut" style="line-height:1.5">${NOTES[t]}</p>`:''}
  ${miniBoard(t)}<p class="mut" style="font-size:12px">Diagram generated by the game's own move rules: the ${p.n} on ${E.sqName(scenario(t).at)} with a friendly pawn and some enemy pawns nearby. The looping animation shows one example move.</p></div></div>`;show('gdetail')}
 
@@ -925,7 +947,7 @@ function nudgeKey(s,m){const p=s.bd[m.f>=0?m.f:0],col=s.turn;
  if(m.x&&m.x.some(i=>s.bd[i]&&s.bd[i].t==='K'&&s.bd[i].c!==col))return'king';
  if(m.k==='pass')return'pass';if(m.k==='sh')return'shot';if(m.k==='ex')return'boom';if(m.k==='sw')return'swap';if(m.k==='cs')return'castle';if(m.k==='v'&&m.x)return'vault';
  const nx=E.applyMove(s,m);if(m.x)return'cap_'+sk(m.t);
- if(p&&'PH'.includes(p.t)&&nx.bd[m.t]&&nx.bd[m.t].t==='Q')return'promo';
+ if(m.pr)return'promo';
  if(E.inCheck(nx,col==='w'?'b':'w'))return'check_'+sk(m.t);
  if(nx.bd[m.t]&&nx.bd[m.t].t==='F')return'freeze';if(p&&p.t==='K')return'kingsafe';return'imp_'+sk(m.t)}
 function hintClick(){if(coachId==='off'){openCoaches();return}if(!S||S.over||isAI(S.turn)||thinking)return;if(hint.ply!==S.ply)hint={ply:S.ply,stage:0,m:null};

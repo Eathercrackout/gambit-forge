@@ -1,4 +1,4 @@
-const VERSION='gambit-forge-v6';
+const VERSION='gambit-forge-v7';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/icon-180.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(VERSION).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))))});
 self.addEventListener('activate',e=>{e.waitUntil((async()=>{
