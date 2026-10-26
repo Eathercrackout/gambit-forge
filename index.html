@@ -248,7 +248,7 @@ body.v-game main{padding:0;max-width:none}
 body.v-game{--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);overflow:hidden}
 body.v-game #game{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:var(--st) var(--sr) var(--sb) var(--sl);
  --bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100vh - var(--st) - var(--sb) - 64px));--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dvh - var(--st) - var(--sb) - 64px))}
-body.v-game .frame{padding:4px;border-radius:8px;margin:auto 0}
+body.v-game .frame{padding:4px;border-radius:8px;margin:auto 0 0}body.v-game #coachRow{margin-bottom:auto;margin-top:6px}.cport{clip-path:circle(50%)}
 @media not ((orientation:landscape) and (max-height:560px)){body.v-game #game{justify-content:flex-start;padding-top:calc(var(--st) + 4px)}}
 body.v-game #board{width:var(--bs)}
 body.v-game .gbar{display:flex;align-items:center;justify-content:space-between;gap:8px;width:calc(var(--bs) + 8px);height:48px;flex:none}
@@ -267,6 +267,38 @@ body.v-game.drawer .side{transform:none}
 body.v-game .drawerHead,body.v-game .dOnly{display:flex}.drawerHead{justify-content:space-between;align-items:center;font-size:18px}
 body.v-game.drawer #gBackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55}
 body.v-game #log{height:160px;flex:none}
+
+/* ---- coach + hint ---- */
+#coachRow{display:none}
+body.v-game #coachRow{display:flex;align-items:center;width:calc(var(--bs) + 8px);height:52px;flex:none}
+body.v-game.nocoach #coachRow{visibility:hidden}
+body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dvh - var(--st) - var(--sb) - 136px));flex-wrap:nowrap}
+#coachBubble{display:flex;align-items:center;gap:8px;width:100%;padding:5px 10px 5px 5px;border-radius:26px;background:rgba(12,14,20,.9);color:#fff;border:1px solid rgba(255,255,255,.35);font-size:14px;line-height:1.25;opacity:0;transform:translateY(6px);transition:opacity .3s,transform .3s}
+#coachBubble.show{opacity:1;transform:none}
+#coachBubble .cav svg{width:38px;height:38px;flex:none;display:block}#coachBubble .ctx{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+@media (orientation:landscape) and (max-height:560px){
+ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 84px),calc(100dvh - var(--st) - var(--sb) - 12px))}
+ body.v-game .frame{margin:auto 0}body.v-game #coachRow{margin:0 8px 0 0;order:0;width:min(220px,calc(50vw - var(--bs)/2 - 76px));height:auto;margin-right:8px}
+ #coachBubble{flex-direction:column;align-items:flex-start;border-radius:16px;padding:8px}#coachBubble .ctx{-webkit-line-clamp:6}}
+#hintBtn{min-width:44px;height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:22px;background:rgba(12,14,20,.88);color:#fff;border:2px solid #ffd400;font-weight:700;font-size:15px;margin-left:auto}
+#hintBtn.on{background:#ffd400;color:#111}#hintBtn:disabled{opacity:.4}
+@media (max-width:400px){#hintBtn .hl2,#gear .gl2{display:none}}
+@media (orientation:landscape) and (max-height:560px){#hintBtn{flex-direction:column;height:auto;padding:8px 4px;gap:2px;font-size:11px;border-radius:14px;margin:0}#hintBtn .hl2{display:inline}}
+#hintL{position:absolute;inset:0;pointer-events:none}
+.hintArrow{position:absolute;inset:0;width:100%;height:100%}
+.hintTo{position:absolute;width:12.5%;height:12.5%;box-sizing:border-box;border:4px dashed #ffd400;border-radius:14%;box-shadow:0 0 0 2px rgba(0,0,0,.6),inset 0 0 0 2px rgba(0,0,0,.6);animation:hpulse 1.2s ease-in-out infinite}
+.hintTo.boom{border-color:#ff6a00}
+.pc.hintFrom::before{content:"";position:absolute;inset:3%;border:4px solid #ffd400;border-radius:16%;box-shadow:0 0 12px 3px rgba(255,212,0,.8),inset 0 0 0 2px rgba(0,0,0,.55);animation:hpulse 1.2s ease-in-out infinite}
+.pc.hintFrom svg{filter:drop-shadow(0 0 5px #ffd400) drop-shadow(0 3px 2px rgba(0,0,0,.45))}
+@keyframes hpulse{50%{opacity:.55}}body.noanim .hintTo,body.noanim .pc.hintFrom::before{animation:none}
+#coachModal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:12px}
+.cmBox{background:var(--card);border:1px solid #3a4256;border-radius:16px;padding:14px;width:min(96vw,640px);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.cc{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border-radius:12px;background:#151922;border:2px solid #2d3445;cursor:pointer;text-align:center}
+.cc:hover{border-color:#6b7590}.cc.on{border-color:var(--acc)}.cc svg,.cc .cport{width:64px;height:64px}.cc small{color:var(--mut)}
+.offp{display:flex;align-items:center;justify-content:center;font-size:36px;border-radius:50%;background:#2a3040}
+.cdet{text-align:center}.cdPort svg{width:120px;height:120px}.cdet blockquote{font-style:italic;margin:8px 0;color:var(--acc)}.cdet p{line-height:1.45}.small{font-size:13px}
+.cdet .btns{justify-content:center;margin-top:8px}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute"><defs>
 <linearGradient id="gW" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9ccb3"/></linearGradient>
@@ -286,6 +318,7 @@ body.v-game #log{height:160px;flex:none}
  <div class="optRow"><span>🔊 Sound</span><button class="tgl" id="oSound"></button></div>
  <div class="optRow"><span>🔤 Board coordinates</span><button class="tgl" id="oCoords"></button></div>
  <div class="optRow"><span>🤖 Default AI difficulty</span><select id="oAI"></select></div>
+ <div class="optRow"><span>🎓 Coach</span><button class="openCoaches">👤 <span class="coachName"></span> ▸</button></div>
  <div class="optRow"><span>📖 How to Play</span><button id="oHow">Open rules →</button></div>
 </div></section>
 <section id="guide" class="view hide"><div class="card"><div class="vhead"><button class="back" data-go="home">← Home</button><h2>Piece Guide</h2></div>
@@ -294,8 +327,9 @@ body.v-game #log{height:160px;flex:none}
 <section id="howto" class="view hide"><div class="vhead"><button class="back" data-go="options">← Back</button><h2>How to Play</h2></div></section>
 <section id="builder" class="view hide"></section>
 <section id="game" class="view hide">
- <div class="gbar"><span id="gStatus" aria-live="polite"></span><button id="gear" aria-label="Open game menu" title="Game menu"><span class="gi">⚙</span><span class="gl2">Menu</span></button></div>
- <div class="frame"><div id="board"><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="fx"></div></div></div>
+ <div class="gbar"><span id="gStatus" aria-live="polite"></span><button id="hintBtn" aria-label="Hint" title="Hint: tap once for a nudge, again to show the move, again to hide"><span class="gi">💡</span><span class="hl2">Hint</span></button><button id="gear" aria-label="Open game menu" title="Game menu"><span class="gi">⚙</span><span class="gl2">Menu</span></button></div>
+ <div class="frame"><div id="board"><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="hintL"></div><div id="fx"></div></div></div>
+ <div id="coachRow"><div id="coachBubble" aria-live="polite"></div></div>
  <div id="gBackdrop"></div>
  <aside class="side" id="side">
   <div class="drawerHead"><b>Game menu</b><button id="gClose" aria-label="Close menu">✕ Close</button></div>
@@ -303,12 +337,13 @@ body.v-game #log{height:160px;flex:none}
   <div id="status"></div>
   <div class="player" id="pBot"></div>
   <div class="btns"><button id="undo">↶ Undo</button><button id="restart">⟲ Restart</button><button id="flip">⇅ Flip</button><button id="tobuild">⚒ Army Builder</button><button data-go="home">⌂ Home</button></div>
-  <div class="btns dOnly"><button id="dAnim"></button><button id="dSound"></button><button id="dCoords"></button><button id="dHow">📖 How to Play</button></div>
+  <div class="btns dOnly"><button id="dAnim"></button><button id="dSound"></button><button id="dCoords"></button><button id="dHow">📖 How to Play</button><button class="openCoaches">🎓 Coach: <span class="coachName"></span></button></div>
   <details class="card" id="themeBox"><summary style="cursor:pointer;font-weight:700">🎨 Board theme: <span class="themeName"></span></summary><div class="themeGrid"></div></details>
   <div class="card" id="info"></div>
   <div id="log"></div>
  </aside>
 </section>
+<div id="coachModal" class="hide" role="dialog" aria-modal="true" aria-label="Coaches"><div class="cmBox"><div class="vhead"><h2 style="flex:1">Coaches</h2><button id="cmClose">✕</button></div><div class="cmBody"></div></div></div>
 <section id="rules" class="card"><h3 style="margin-top:0">Rules &amp; Piece Glossary</h3>
 <p>Each side builds an army of 8 back-row and 8 pawn-row pieces with a <b>40-point budget</b>; exactly one King (free, back row) is mandatory. White moves first.
 <b>Win condition: capture the enemy King.</b> Because abilities (vaults, shots, blasts, freezes) make true checkmate ambiguous, moving into or staying in check is legal; a pulsing red glow warns you when your King is attacked. Draws: 200 plies, threefold repetition, or no legal moves.
@@ -484,7 +519,7 @@ function nm(s,d,a,b,ply){if(s.over)return-WIN+ply;if(isRep(s))return 0;
   if(v>best){best=v;bm=m.cd}if(v>a)a=v;
   if(a>=b){if(!m.x){const k=killers[ply]||(killers[ply]=[0,0]);if(k[0]!==m.cd){k[1]=k[0];k[0]=m.cd}HH[m.cd]+=d*d}break}}
  path.pop();TTk[ix]=1;TT2[ix]=s.h2;TTd[ix]=d;TTv[ix]=best;TTf[ix]=best<=a0?2:best>=b?1:0;TTm[ix]=bm;return best}
-function think(s0,lvId,opt={}){const t0=Date.now();cfg=LEVELS.find(l=>l.id===lvId)||LEVELS[2];
+function think(s0,lvId,opt={}){const t0=Date.now();cfg=opt.cfg||LEVELS.find(l=>l.id===lvId)||LEVELS[2];
  const s=clone(s0);hashFull(s);const rng=opt.rng||Math.random;
  const time=cfg.time*(opt.timeScale||1);deadline=t0+time;nodes=0;stop=false;killers=[];path=[];HH.fill(0);
  reps=new Set(s.hist||[]);reps.delete(s.h1);
@@ -556,12 +591,12 @@ const SND={move:()=>{tone(420,.07,'triangle',.18,260);noise(.05,.12,2500)},captu
 const LV=E.LEVELS;
 let armies={w:{...E.PRESETS.Arcane},b:{...E.PRESETS.Classic}},players={w:'human',b:(()=>{try{return lsGet('gf_ailevel','inter')}catch(e){return'inter'}})()},editing={side:'w',row:'b',i:0};
 let S,hist=[],logs=[],caps={w:[],b:[]},sel=null,last=null,flipped=false,aiToken=0,thinking=null,aiInfo={w:'',b:''};
-const lvName=id=>{const l=LV.find(l=>l.id===id);return l?`${l.name} (~${l.elo})`:'Human'};
+const lvName=id=>{if(id&&id.startsWith('coach:')){const c=coachById(id.slice(6));return c?`${c.name} (coach · ~${c.elo})`:'Coach'}const l=LV.find(l=>l.id===id);return l?`${l.name} (~${l.elo})`:'Human'};
 // ---------- Builder ----------
 function renderBuilder(){let h='';
  for(const side of['w','b']){const a=armies[side],err=E.validArmy(a),cost=E.armyCost(a);
   h+=`<div class="card army"><h3><span><span class="dot ${side}" style="display:inline-block;vertical-align:-2px"></span> ${side==='w'?'White':'Black'} army</span>
-  <select data-player="${side}"><option value="human">Human</option>${LV.map(l=>`<option value="${l.id}">AI · ${l.name} (~${l.elo} Elo)</option>`).join('')}</select></h3>
+  <select data-player="${side}"><option value="human">Human</option>${LV.map(l=>`<option value="${l.id}">AI · ${l.name} (~${l.elo} Elo)</option>`).join('')}${COACHES.map(c=>`<option value="coach:${c.id}">Coach · ${c.name} (~${c.elo} Elo)</option>`).join('')}</select></h3>
   <div class="meter ${cost>E.BUDGET?'over':''}"><i style="width:${Math.min(100,cost/E.BUDGET*100)}%"></i></div>
   <div>${cost} / ${E.BUDGET} pts ${err?`<span class="err">⚠ ${err}</span>`:'<span class="ok">✔ valid</span>'}</div>`;
   for(const row of(side==='w'?['p','b']:['b','p'])){h+=`<div class="rowlbl">${row==='b'?'Back row':'Pawn row'}</div><div class="slots">`;
@@ -614,14 +649,14 @@ function render(anim){const ms=sel!=null?E.genMoves(S,S.turn).filter(m=>m.f===se
  else st.textContent=(S.turn==='w'?'White':'Black')+' to move'+(chk?' — CHECK!':'');
  renderPlayers();
  let lg='';for(let i=0;i<logs.length;i+=2)lg+=`<span class="n">${i/2+1}.</span><span>${logs[i]}</span><span>${logs[i+1]||''}</span>`;$('log').innerHTML=lg;$('log').scrollTop=1e9;
- const sp=sel!=null&&S.bd[sel];$('info').innerHTML=sp?`${svgPiece(sp.t,sp.c)}<div><b>${P[sp.t].n}</b><br>${P[sp.t].d}</div>`:'<div>Select a piece to see its moves and abilities.</div>'}
+ const sp=sel!=null&&S.bd[sel];$('info').innerHTML=sp?`${svgPiece(sp.t,sp.c)}<div><b>${P[sp.t].n}</b><br>${P[sp.t].d}</div>`:'<div>Select a piece to see its moves and abilities.</div>';drawHint()}
 function fx(cls,i,extra){const[r,c]=disp(i);const e=document.createElement('div');e.className='fxe '+cls;e.style.left=c*12.5+'%';e.style.top=r*12.5+'%';if(extra)extra(e);$('fx').appendChild(e);setTimeout(()=>e.remove(),900)}
 function moveText(s,m){if(m.k==='pass')return'— pass (frozen)';const p=s.bd[m.f],ic=svgPiece(p.t,p.c),n=E.sqName;
  return ic+(m.k==='cs'?((m.t&7)>(m.f&7)?'O-O':'O-O-O'):m.k==='sw'?n(m.f)+'⇄'+n(m.t):m.k==='sh'?n(m.f)+'➶'+n(m.t):m.k==='ex'?n(m.f)+' 💥'+(m.x.length-1):n(m.f)+(m.x?'×':'–')+n(m.t))}
 function doMove(m){const pre=S,col=pre.turn;hist.push({S,logs:[...logs],caps:{w:[...caps.w],b:[...caps.b]},last,aiInfo:{...aiInfo}});
  logs.push(moveText(pre,m));const dead=[];
  for(const x of m.x||[]){const q=pre.bd[x];if(q&&!(m.k==='ex'&&x===m.f&&false)){dead.push({i:x,t:q.t,c:q.c});caps[q.c===col?(col==='w'?'b':'w'):col].push(q.t)}}
- S=E.applyMove(pre,m);last=m.k==='pass'?null:m;sel=null;render({m,dead});
+ S=E.applyMove(pre,m);last=m.k==='pass'?null:m;sel=null;render({m,dead});onMoved(pre,m,S);
  // effects + sound
  if(m.k==='ex'){fx('boom',m.f);$('board').classList.remove('shake');void $('board').offsetWidth;$('board').classList.add('shake');SND.boom()}
  else if(m.k==='sh'){const[r0,c0]=disp(m.f),[r1,c1]=disp(m.t),dx=c1-c0,dy=r1-r0;
@@ -641,16 +676,16 @@ function click(i){if(!S||S.over||isAI(S.turn)||thinking)return;actx();const p=S.
  render()}
 // ---------- AI (Web Worker with sync fallback) ----------
 let worker=null,workerFailed=false,pending=null;
-function makeWorker(){try{const src=$('engine').textContent+';onmessage=function(e){var r=GF.think(e.data.s,e.data.lv);postMessage({id:e.data.id,r:r})}';
+function makeWorker(){try{const src=$('engine').textContent+';onmessage=function(e){var r=GF.think(e.data.s,e.data.lv,{cfg:e.data.cfg});postMessage({id:e.data.id,r:r})}';
  const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));w.onmessage=e=>gotAI(e.data.id,e.data.r);
  w.onerror=ev=>{ev.preventDefault&&ev.preventDefault();workerFailed=true;worker=null;if(pending)runSync(pending)};return w}catch(e){workerFailed=true;return null}}
-function runSync(p){setTimeout(()=>gotAI(p.id,E.think(p.s,p.lv)),30)}
+function runSync(p){setTimeout(()=>gotAI(p.id,E.think(p.s,p.lv,{cfg:p.cfg})),30)}
 function gotAI(id,r){if(id!==aiToken)return;pending=null;const c=thinking;thinking=null;if(!r){S.over='draw';S.why='nomoves';render();return}
  aiInfo[c]=`depth ${r.depth} · ${(r.ms/1000).toFixed(1)}s`;const cd=E.code(r.move);const m=E.genMoves(S,S.turn).find(m=>E.code(m)===cd);if(m)doMove(m);else render()}
 function nextTurn(){if(!S||S.over){render();return}
  const pm=E.genMoves(S,S.turn);if(!isAI(S.turn)&&pm.length===1&&pm[0].k==='pass'){doMove(pm[0]);return}
  if(!isAI(S.turn))return;thinking=S.turn;renderPlayers();const id=++aiToken;
- const s={bd:S.bd,turn:S.turn,ply:S.ply,over:S.over,hist:S.hist};pending={id,s,lv:players[S.turn]};
+ const s={bd:S.bd,turn:S.turn,ply:S.ply,over:S.over,hist:S.hist,ep:S.ep,epP:S.epP};pending={id,s,lv:players[S.turn],cfg:aiCfg(players[S.turn])};
  if(!worker&&!workerFailed&&typeof Worker!=='undefined')worker=makeWorker();
  if(worker)worker.postMessage(pending);else runSync(pending)}
 $('undo').onclick=()=>{if(!hist.length)return;aiToken++;thinking=null;let h=hist.pop();
@@ -704,7 +739,7 @@ $('animBtn').onclick=()=>setAnim(!anim,true);setAnim(anim);
 
 $('themeHdr').outerHTML=themeSelect();setTheme(theme);
 $('gloss').innerHTML=Object.entries(P).map(([k,p])=>`<div>${svgPiece(k,'w')}${svgPiece(k,'b')}<span><b>${p.n}</b> <small style="color:var(--mut)">${p.row==='x'?'promotion only':p.c+' pts · '+(p.row==='b'?'back row':'pawn row')}</small><br>${p.d}</span></div>`).join('');
-renderBuilder();
+
 window.GFUI={get S(){return S},players,armies,start,doMove,click,get thinking(){return thinking}};
 
 // ---------- Views: home / options / guide ----------
@@ -783,6 +818,149 @@ $('dHow').onclick=()=>{openD(false);show('howto')};
 function syncD(){const t=(id,on,lbl)=>{const e=$(id);if(e){e.textContent=lbl+(on?': On':': Off');e.classList.toggle('on',on)}};t('dAnim',anim,'✨ Anim');t('dSound',!muted,'🔊 Sound');t('dCoords',coords,'🔤 Coords')}
 function tryFS(){try{const st=matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
  if(!st&&document.fullscreenEnabled&&!document.fullscreenElement&&matchMedia('(pointer:coarse)').matches)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}}
+// ================= COACHES =================
+// Each coach plays at their own Elo (as an opponent). Hints/callouts ALWAYS use a strong, independent analysis.
+const COACHES=[
+ {id:'pip',name:'Pip',elo:400,col:'#7fc8f8',skin:'#ffd9b3',hair:'#e8a33d',hs:0,acc:'🎈',pitch:1.6,rate:1.15,pers:'An excitable beginner who just learned the rules and loves every capture.',
+  sample:'Ooh, I love when pieces go boing!',
+  l:{greet:'Hi hi! Let\'s play — I\'ll shout if I see something!',kingDanger:'Eek! Your King can get bonked right now!',missedWin:'Wait — you could have grabbed their King!',hang:'Uh-oh, your {p} is just sitting there unprotected!',blunder:'Hmm, I think that one was a big oopsie.',check:'Woo! Their King is in trouble!',attack:'Ooh, your {p} is poking their {t}!',great:'Yay, super move!',inaccuracy:'That\'s okay, but there was a shinier move.',threatKing:'Careful! They\'re aiming at your King!',threatPiece:'Watch out, their {p} wants your {t}!',win:'You won! Best day ever!',nudge:'Psst! {n}'}},
+ {id:'grandma',name:'Grandma Gambit',elo:620,col:'#f4a6c1',skin:'#f1c7a1',hair:'#e8e8e8',hs:1,acc:'🧶',pitch:1.2,rate:.9,pers:'Warm, patient and endlessly encouraging; she has seen every blunder twice.',
+  sample:'Take your time, sweetheart, the board isn\'t going anywhere.',
+  l:{greet:'Settle in, dear — I\'ll whisper when it matters.',kingDanger:'Oh dear, your King is wide open, love!',missedWin:'Sweetie, their King was right there for the taking.',hang:'Mind your {p}, dear — nobody is guarding it.',blunder:'Oh my, I\'m afraid that gives something away.',check:'Well done, dear, their King must run!',attack:'Lovely — your {p} is eyeing their {t}.',great:'Oh, that\'s a beautiful move, dear!',inaccuracy:'Not bad, dear, but there was a nicer one.',threatKing:'Careful, love, they\'re after your King.',threatPiece:'Their {p} has its eye on your {t}, dear.',win:'I knew you could do it, sweetheart!',nudge:'A little hint, dear: {n}'}},
+ {id:'blaze',name:'Captain Blaze',elo:840,col:'#ff7a45',skin:'#e7b48f',hair:'#c0392b',hs:2,acc:'🔥',pitch:1.0,rate:1.25,pers:'A hype-machine sports captain who treats every move like the final seconds of a match.',
+  sample:'Full speed ahead, champ — let\'s light this board up!',
+  l:{greet:'Let\'s GO, champ! I\'ll call the big plays!',kingDanger:'Red alert! Your King is exposed!',missedWin:'Argh — the King was open, champ!',hang:'Fumble! Your {p} is left unguarded!',blunder:'Ouch, that\'s a costly turnover!',check:'BOOM, check! Keep the pressure on!',attack:'Huge! Your {p} is going after their {t}!',great:'What a play! Crowd goes wild!',inaccuracy:'Decent, but there was a highlight-reel move.',threatKing:'Defense! They\'re charging your King!',threatPiece:'Heads up — their {p} is gunning for your {t}!',win:'CHAMPIONS! What a game!',nudge:'Coach\'s tip: {n}'}},
+ {id:'lark',name:'Lady Lark',elo:1070,col:'#b39ddb',skin:'#f3d1bf',hair:'#5d4037',hs:3,acc:'🪶',pitch:1.3,rate:.95,pers:'A poet who sees every game as a song, and gently hums when you stray off-key.',
+  sample:'Each move a verse, each capture a rhyme.',
+  l:{greet:'Let us compose a game together; I\'ll sing when it matters.',kingDanger:'Alas, your King stands bare beneath the storm.',missedWin:'The final verse was yours — their King lay open.',hang:'Your {p} stands lonely, with no one to shield it.',blunder:'A sour note, I fear — that loses ground.',check:'A ringing chord: their King must flee!',attack:'Your {p} now sings against their {t}.',great:'Exquisite — a move worthy of a sonnet.',inaccuracy:'A fair line, though a sweeter one was near.',threatKing:'A shadow falls upon your King.',threatPiece:'Their {p} hums a threat toward your {t}.',win:'The song ends in triumph — bravo!',nudge:'A whisper on the wind: {n}'}},
+ {id:'bramble',name:'Sir Bramble',elo:1290,col:'#81c784',skin:'#e9c2a0',hair:'#6d4c41',hs:4,acc:'🛡️',pitch:.85,rate:.95,pers:'A courteous old knight who believes in honour, discipline and well-defended flanks.',
+  sample:'Steady your ranks, squire, and the field shall be ours.',
+  l:{greet:'At your service, squire — I shall counsel when needed.',kingDanger:'To arms! Your sovereign is exposed!',missedWin:'Alas, squire — the enemy King was yours to take.',hang:'Your {p} stands unguarded upon the field.',blunder:'A grave misstep, squire; ground has been lost.',check:'Well struck! Their King is beset!',attack:'Your {p} now challenges their {t}. Bold!',great:'A noble stroke, squire!',inaccuracy:'Serviceable, though a finer stroke existed.',threatKing:'Guard your King, squire — the foe advances!',threatPiece:'Their {p} threatens your {t}. Mind the flank!',win:'Victory! Songs shall be sung of this day.',nudge:'Counsel, squire: {n}'}},
+ {id:'quill',name:'Professor Quill',elo:1510,col:'#90a4ae',skin:'#f0cdb0',hair:'#9e9e9e',hs:5,acc:'🎓',pitch:.9,rate:1.05,pers:'A dry, precise academic who grades every move and rarely hands out an A.',
+  sample:'Fascinating. Let us examine the evidence, shall we?',
+  l:{greet:'Lecture begins. I will annotate only the critical moments.',kingDanger:'Observation: your King is capturable. Remedy that.',missedWin:'Regrettable — the enemy King was available.',hang:'Note: your {p} is undefended.',blunder:'That move forfeits material. Grade: D.',check:'Check. Correctly applied pressure.',attack:'Correct: your {p} now attacks their {t}.',great:'Excellent. Full marks.',inaccuracy:'Acceptable, but suboptimal.',threatKing:'Caution: your King is under direct threat.',threatPiece:'Their {p} targets your {t}. Address it.',win:'Conclusive victory. Well argued.',nudge:'Consider: {n}'}},
+ {id:'sensei',name:'Rook Sensei',elo:1730,col:'#4db6ac',skin:'#e3b98f',hair:'#212121',hs:6,acc:'🍃',pitch:.8,rate:.85,pers:'A calm master of patience who speaks rarely and only with purpose.',
+  sample:'The quiet move is often the loudest.',
+  l:{greet:'Breathe. I will speak only when it matters.',kingDanger:'Your King stands in the open. Shelter it.',missedWin:'The King was yours. See the whole board.',hang:'Your {p} is alone. Protect it.',blunder:'Haste has cost you. Breathe, then move.',check:'Check. Now follow through calmly.',attack:'Your {p} presses their {t}. Good.',great:'Yes. That is the way.',inaccuracy:'Good, but a stronger path existed.',threatKing:'A threat gathers around your King.',threatPiece:'Their {p} watches your {t}.',win:'The game is won. Bow, and reflect.',nudge:'Look closely. {n}'}},
+ {id:'vex',name:'Vex the Sharp',elo:1960,col:'#9575cd',skin:'#d7a98c',hair:'#311b92',hs:7,acc:'🃏',pitch:1.1,rate:1.1,pers:'A sly, sarcastic hustler who teases mistakes but secretly wants you to win.',
+  sample:'Oh, you thought that was safe? Cute.',
+  l:{greet:'Fine, I\'ll watch. Try not to embarrass us.',kingDanger:'Bold strategy, leaving your King naked like that.',missedWin:'You had the King. You. Had. The. King.',hang:'Your {p} is free real estate right now.',blunder:'Wow. Generous gift to the other side.',check:'Check! Okay, I\'m mildly impressed.',attack:'Ooh, your {p} is bullying their {t}. Nice.',great:'Fine, that was actually sharp.',inaccuracy:'Meh — there was a spicier move.',threatKing:'They\'re coming for your King. Thoughts?',threatPiece:'Their {p} is licking its lips at your {t}.',win:'You won. I\'ll pretend I\'m not proud.',nudge:'Fine, a freebie: {n}'}},
+ {id:'duchess',name:'Iron Duchess',elo:2180,col:'#78909c',skin:'#efd0bd',hair:'#bdbdbd',hs:8,acc:'👑',pitch:.95,rate:.95,pers:'A stern tournament veteran with exacting standards and zero patience for sloppiness.',
+  sample:'Precision is not optional.',
+  l:{greet:'Play properly. I will intervene only when necessary.',kingDanger:'Unacceptable. Your King is exposed.',missedWin:'You missed a winning capture of the King.',hang:'Your {p} is hanging. Fix it.',blunder:'A serious error. Material is lost.',check:'Check. Adequate.',attack:'Your {p} pressures their {t}. Continue.',great:'Precise. That is the standard.',inaccuracy:'Imprecise. There was better.',threatKing:'Your King is threatened. Respond.',threatPiece:'Their {p} attacks your {t}.',win:'Victory. Acceptable.',nudge:'Pay attention: {n}'}},
+ {id:'forge',name:'The Forgemaster',elo:2400,col:'#ffb74d',skin:'#c68c63',hair:'#3e2723',hs:9,acc:'⚒️',pitch:.65,rate:.85,pers:'The legendary smith who forged every piece on this board — gruff, ancient and terrifyingly strong.',
+  sample:'Steel is tempered in fire. So are players.',
+  l:{greet:'Step to the anvil. I speak when the iron is hot.',kingDanger:'Your King stands unforged. It will shatter.',missedWin:'The King lay on the anvil and you did not strike.',hang:'Your {p} lies cold and unguarded.',blunder:'A crack in the blade. That costs you.',check:'Check. The hammer falls.',attack:'Your {p} now bears down on their {t}.',great:'Well struck. The steel sings.',inaccuracy:'Serviceable. Not masterwork.',threatKing:'Fire gathers at your King.',threatPiece:'Their {p} is aimed at your {t}.',win:'Forged in victory.',nudge:'Heed the forge: {n}'}},
+];
+const coachById=id=>COACHES.find(c=>c.id===id);
+function aiCfg(p){if(!p||!p.startsWith('coach:'))return undefined;const c=coachById(p.slice(6));if(!c)return undefined;const L=LV;let e=c.elo;
+ if(e>=L[L.length-1].elo)return{...L[L.length-1]};let i=0;while(i<L.length-2&&L[i+1].elo<e)i++;const a=L[i],b=L[i+1],f=Math.max(0,Math.min(1,(e-a.elo)/(b.elo-a.elo)));
+ const lerp=(x,y)=>x+(y-x)*f,bd=b.depth>20?8:b.depth;return{id:'coach',name:c.name,elo:e,depth:Math.max(1,Math.round(lerp(a.depth,bd))),time:Math.round(lerp(a.time,b.time)),q:f>.5?b.q:a.q,noise:Math.round(lerp(a.noise,b.noise)),blunder:lerp(a.blunder,b.blunder),full:f>.5?b.full:a.full}}
+function coachSVG(c){const hs=c.hs,h=c.hair;const hair=[
+ `<path d="M28 44c0-16 12-24 22-24s22 8 22 24c-6-8-14-10-22-10s-16 2-22 10z" fill="${h}"/>`,
+ `<path d="M26 46c0-18 12-26 24-26s24 8 24 26c-4-4-6-12-10-14-6 4-22 4-28 0-4 2-6 10-10 14z" fill="${h}"/><circle cx="50" cy="18" r="9" fill="${h}"/>`,
+ `<path d="M27 42l6-18 8 8 9-14 9 14 8-8 6 18c-8-6-15-8-23-8s-15 2-23 8z" fill="${h}"/>`,
+ `<path d="M24 70c-2-30 10-48 26-48s28 18 26 48c-4-14-6-26-26-28-20 2-22 14-26 28z" fill="${h}"/>`,
+ `<path d="M28 44c0-16 12-24 22-24s22 8 22 24c-6-6-14-8-22-8s-16 2-22 8z" fill="${h}"/><path d="M34 66q16 14 32 0q-2 14-16 16q-14-2-16-16z" fill="${h}"/>`,
+ `<path d="M28 40c4-14 14-18 22-18s18 4 22 18c-4-4-8-6-12-6h-20c-4 0-8 2-12 6z" fill="${h}"/><circle cx="41" cy="52" r="7" fill="none" stroke="#333" stroke-width="2"/><circle cx="59" cy="52" r="7" fill="none" stroke="#333" stroke-width="2"/><path d="M48 52h4" stroke="#333" stroke-width="2"/>`,
+ `<path d="M30 40c2-12 10-18 20-18s18 6 20 18c-6-4-12-6-20-6s-14 2-20 6z" fill="${h}"/><circle cx="50" cy="20" r="6" fill="${h}"/>`,
+ `<path d="M26 44l10-24 14 8 14-8 10 24c-8-6-16-8-24-8s-16 2-24 8z" fill="${h}"/>`,
+ `<path d="M26 60c-2-24 10-38 24-38s26 14 24 38c-2-10-6-20-24-22-18 2-22 12-24 22z" fill="${h}"/><path d="M34 26l6-12 10 8 10-8 6 12z" fill="#ffd54f" stroke="#b8860b"/>`,
+ `<path d="M28 44c0-16 12-24 22-24s22 8 22 24c-6-6-14-8-22-8s-16 2-22 8z" fill="${h}"/><path d="M30 62q20 30 40 0q0 22-20 26q-20-4-20-26z" fill="#9e9e9e"/>`][hs];
+ return`<svg viewBox="0 0 100 100" class="cport"><circle cx="50" cy="50" r="48" fill="${c.col}"/><path d="M18 100c4-20 16-28 32-28s28 8 32 28z" fill="rgba(0,0,0,.25)"/><circle cx="50" cy="52" r="22" fill="${c.skin}"/>
+ <circle cx="42" cy="52" r="2.6" fill="#222"/><circle cx="58" cy="52" r="2.6" fill="#222"/><path d="M43 62q7 5 14 0" fill="none" stroke="#7a3b2e" stroke-width="2.4" stroke-linecap="round"/>${hair}<text x="80" y="28" font-size="22" text-anchor="middle">${c.acc}</text></svg>`}
+let coachId=lsGet('gf_coach','sensei');if(coachId!=='off'&&!coachById(coachId))coachId='sensei';
+function setCoach(id){coachId=id;try{localStorage.setItem('gf_coach',id)}catch(e){}document.body.classList.toggle('nocoach',id==='off');syncCoach()}
+function syncCoach(){const c=coachById(coachId);document.querySelectorAll('.coachName').forEach(e=>e.textContent=c?`${c.name} (~${c.elo})`:'Off')}
+// ---- strong independent analysis for hints/callouts ----
+const STRONG={id:'analysis',depth:4,time:300,q:true,noise:0,blunder:0,full:true};const acache=new Map();
+function analyze(s){const k=s.h1+':'+s.h2+':'+s.ply;if(acache.has(k))return acache.get(k);const r=E.think(s,'master',{cfg:STRONG,rng:()=>.99});
+ const v={best:r&&r.move,score:r?Math.max(-5000,Math.min(5000,r.score)):0};if(acache.size>200)acache.clear();acache.set(k,v);return v}
+const val=t=>t==='K'?100:(P[t].c||6);const nm=t=>P[t].n;
+function defended(s,col,sq){const opp=col==='w'?'b':'w';const bd=s.bd.slice();bd[sq]={t:'P',c:opp};return E.genMoves({...s,bd,turn:col},col).some(m=>m.x&&m.x.includes(sq))}
+function hanging(s,col){const opp=col==='w'?'b':'w';let best=null;
+ for(const m of E.genMoves({...s,turn:opp},opp))if(m.x)for(const x of m.x){const q=s.bd[x];if(!q||q.c!==col||q.t==='K')continue;const att=m.f>=0&&s.bd[m.f]?s.bd[m.f].t:'P';
+  if((!defended(s,col,x)||val(att)<val(q.t))&&(!best||val(q.t)>val(best.t)))best={t:q.t,p:att,sq:x}}return best}
+function attackFrom(s,sq,col){const p=s.bd[sq];if(!p||p.c!==col)return null;const opp=col==='w'?'b':'w';let best=null;
+ for(const m of E.genMoves({...s,turn:col},col)){if(m.f!==sq||!m.x)continue;for(const x of m.x){const q=s.bd[x];if(!q||q.c!==opp||q.t==='K'||val(q.t)<3)continue;
+  if((!defended(s,opp,x)||val(q.t)>val(p.t))&&(!best||val(q.t)>val(best.t)))best={t:q.t,p:p.t}}}return best}
+const kingCapture=(s,col)=>E.genMoves({...s,turn:col},col).find(m=>m.x&&m.x.some(i=>s.bd[i]&&s.bd[i].t==='K'&&s.bd[i].c!==col));
+// ---- speech bubble (one remark per ply) ----
+let lastRemarkPly=-1,bubbleT=null,lastRemarkAt=0,gameId=0;const URGENT=new Set(['kingDanger','missedWin','hang','blunder','threatKing','win','greet','nudge']);
+function say(ev,vars={},ply,force){const c=coachById(coachId);if(!c||!$('coachRow'))return false;if(!force&&ply===lastRemarkPly)return false;if(!force&&!URGENT.has(ev)&&Date.now()-lastRemarkAt<3000)return false;let t=c.l[ev];if(!t)return false;
+ for(const k in vars)t=t.split('{'+k+'}').join(vars[k]);if(!force){lastRemarkPly=ply;lastRemarkAt=Date.now()}
+ const b=$('coachBubble');b.innerHTML=`<span class="cav">${coachSVG(c)}</span><span class="ctx"><b>${c.name}:</b> ${t}</span>`;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
+ clearTimeout(bubbleT);bubbleT=setTimeout(()=>b.classList.remove('show'),7000);return true}
+function onMoved(pre,m,post){if(coachId==='off')return;const col=pre.turn,opp=col==='w'?'b':'w',ply=post.ply;
+ const gid=gameId;setTimeout(()=>{if(gid!==gameId||!(S===post||hist.some(h=>h.S===post)))return;
+  if(!isAI(col)){ // critique the human's move
+   if(post.over){if(post.over===col)say('win',{},ply);return}
+   let ev=null,v={};
+   if(E.inCheck(post,col))ev='kingDanger';
+   else if(kingCapture(pre,col))ev='missedWin';
+   else{const a0=analyze(pre),a1=analyze(post),drop=a0.score+a1.score;window.__lastDrop=drop;const h=hanging(post,col);
+    if(drop>=200){if(h){ev='hang';v={p:nm(h.t)}}else ev='blunder'}
+    else if(E.inCheck(post,opp))ev='check';
+    else{const sq=(m.k==='sh'||m.k==='ex')?m.f:m.t;const at=m.k==='ex'?null:attackFrom(post,sq,col);
+     if(at){ev='attack';v={p:nm(at.p),t:nm(at.t)}}
+     else if(a0.best&&E.code(a0.best)===E.code(m)&&(m.x||m.k!=='m')&&drop<=20)ev='great';
+     else if(drop>=90)ev='inaccuracy'}}
+   (window.__coachLog=window.__coachLog||[]).push({ply,ev,mv:E.sqName(m.f>=0?m.f:0)+E.sqName(m.t>=0?m.t:0)});if(window.__coachLog.length>50)window.__coachLog.shift();
+   if(ev){say(ev,v,ply);return}}
+  if(!post.over&&!isAI(post.turn)){ // warn the human who moves next
+   const me=post.turn;if(E.inCheck(post,me))say('threatKing',{},ply);else{const h=hanging(post,me);if(h&&val(h.t)>=3)say('threatPiece',{p:nm(h.p),t:nm(h.t)},ply)}}},60)}
+// ---- two-stage hint ----
+let hint={ply:-1,stage:0,m:null};
+const sideOf=sq=>{const c=sq&7;return c<=2?'on the queenside':c>=5?'on the kingside':'in the center'};
+function nudgeText(s,m){const p=s.bd[m.f>=0?m.f:0],col=s.turn;
+ if(m.x&&m.x.some(i=>s.bd[i]&&s.bd[i].t==='K'&&s.bd[i].c!==col))return'The enemy King is exposed — look for a way to capture it!';
+ if(m.k==='pass')return'Nothing can move — you must pass this turn.';
+ if(m.k==='sh')return'One of your ranged pieces has a target.';
+ if(m.k==='ex')return'Something explosive is possible near the enemy.';
+ if(m.k==='sw')return'A swap between two of your pieces would help.';
+ if(m.k==='cs')return'Your King would be safer tucked away — think about castling.';
+ if(m.k==='v'&&m.x)return'Someone can leap over an enemy and capture it.';
+ const nx=E.applyMove(s,m);
+ if(m.x)return'Look for a capture '+sideOf(m.t)+'.';
+ if(p&&'PH'.includes(p.t)&&nx.bd[m.t]&&nx.bd[m.t].t==='Q')return'One of your pawns is ready to promote.';
+ if(E.inCheck(nx,col==='w'?'b':'w'))return'You can put their King under pressure '+sideOf(m.t)+'.';
+ if(nx.bd[m.t]&&nx.bd[m.t].t==='F')return'A freeze could lock down some enemy pieces.';
+ if(p&&p.t==='K')return'Your King wants a safer square.';
+ return'Improve a piece '+sideOf(m.t)+'.'}
+function hintClick(){if(!S||S.over||isAI(S.turn)||thinking)return;if(hint.ply!==S.ply)hint={ply:S.ply,stage:0,m:null};
+ hint.stage=(hint.stage+1)%3;
+ if(hint.stage===1){const a=analyze(S);hint.m=a.best;if(!hint.m){hint.stage=0;return}const c=coachById(coachId)||COACHES[6];
+  const prev=coachId;if(coachId==='off')coachId=c.id;say('nudge',{n:nudgeText(S,hint.m)},S.ply,true);coachId=prev}
+ render()}
+function hintLabel(){const b=$('hintBtn');if(!b)return;const can=S&&!S.over&&!isAI(S.turn)&&!thinking;b.disabled=!can;const st=hint.ply===(S&&S.ply)?hint.stage:0;
+ b.querySelector('.hl2').textContent=st===0?'Hint':st===1?'Show move':'Hide';b.classList.toggle('on',st>0)}
+function drawHint(){hintLabel();const L=$('hintL');if(!L)return;L.innerHTML='';document.querySelectorAll('.pc.hintFrom').forEach(e=>e.classList.remove('hintFrom'));
+ if(!S||hint.ply!==S.ply||hint.stage!==2||!hint.m||hint.m.f<0)return;const m=hint.m;
+ const pe=document.querySelector(`#pieces .pc[data-p="${m.f}"]`);if(pe)pe.classList.add('hintFrom');
+ const[r0,c0]=disp(m.f),[r1,c1]=disp(m.t);let h=`<div class="hintTo${m.k==='ex'?' boom':''}" style="left:${c1*12.5}%;top:${r1*12.5}%"></div>`;
+ if(m.f!==m.t){const x0=c0*100+50,y0=r0*100+50,x1=c1*100+50,y1=r1*100+50,d=Math.hypot(x1-x0,y1-y0),ux=(x1-x0)/d,uy=(y1-y0)/d;
+  h+=`<svg viewBox="0 0 800 800" class="hintArrow"><defs><marker id="hah" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto"><path d="M0 0L4 2 0 4z" fill="#ffd400"/></marker></defs>
+  <line x1="${x0+ux*38}" y1="${y0+uy*38}" x2="${x1-ux*30}" y2="${y1-uy*30}" stroke="#ffd400" stroke-width="9" stroke-linecap="round" marker-end="url(#hah)" opacity=".85"/></svg>`}
+ L.innerHTML=h}
+// ---- coach picker / detail popup ----
+function openCoaches(){const m=$('coachModal');m.classList.remove('hide');
+ m.querySelector('.cmBody').innerHTML=`<div class="cgrid"><div class="cc${coachId==='off'?' on':''}" data-cid="off"><div class="cport offp">🔕</div><b>No coach</b><small>Hints only</small></div>${COACHES.map(c=>`<div class="cc${coachId===c.id?' on':''}" data-cid="${c.id}">${coachSVG(c)}<b>${c.name}</b><small>~${c.elo} Elo</small></div>`).join('')}</div>`;
+ m.querySelectorAll('.cc').forEach(e=>e.onclick=()=>{if(e.dataset.cid==='off'){setCoach('off');closeCoaches()}else coachDetail(e.dataset.cid)})}
+function coachDetail(id){const c=coachById(id),m=$('coachModal');const canSpeak='speechSynthesis'in window;
+ m.querySelector('.cmBody').innerHTML=`<div class="cdet"><div class="cdPort">${coachSVG(c)}</div><h3>${c.name}</h3><div class="tags"><span class="tag">Plays at ~${c.elo} Elo</span>${coachId===c.id?'<span class="tag">Your coach</span>':''}</div>
+ <p>${c.pers}</p><blockquote>“${c.sample}”</blockquote><button id="cVoice"${canSpeak?'':' disabled title="Speech not supported on this device"'}>🔊 Voice preview</button>
+ <p class="mut small">When you play <b>against</b> ${c.name}, they make moves at about <b>${c.elo} Elo</b>. As your <b>coach</b>, their hints and callouts always come from a strong analysis engine, independent of their playing strength, so every coach gives good advice.</p>
+ <div class="btns"><button class="primary" id="cChoose">🎓 Choose as coach</button><button id="cPlay">⚔ Play vs ${c.name}</button><button id="cBack">← All coaches</button></div></div>`;
+ $('cVoice').onclick=()=>{try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(c.sample);u.pitch=c.pitch;u.rate=c.rate;speechSynthesis.speak(u)}catch(e){}};
+ $('cChoose').onclick=()=>{setCoach(c.id);closeCoaches();say('greet',{},-2,true)};
+ $('cPlay').onclick=()=>{closeCoaches();players.w='human';players.b='coach:'+c.id;show('builder')};$('cBack').onclick=openCoaches}
+function closeCoaches(){$('coachModal').classList.add('hide')}
+document.querySelectorAll('.openCoaches').forEach(b=>b.onclick=openCoaches);$('cmClose').onclick=closeCoaches;$('coachModal').onclick=e=>{if(e.target.id==='coachModal')closeCoaches()};
+$('hintBtn').onclick=hintClick;setCoach(coachId);
+const _start=start;start=function(){_start();gameId++;lastRemarkAt=0;hint={ply:-1,stage:0,m:null};lastRemarkPly=-1;acache.clear();if(coachId!=='off')setTimeout(()=>say('greet',{},-3,true),500)};
+$('restart').onclick=start;
+window.GFUI.hint=hintClick;window.GFUI.aiCfg=aiCfg;window.GFUI.coachDetail=coachDetail;window.GFUI.setCoach=setCoach;window.GFUI.COACHES=COACHES;
+
 window.GFUI.show=show;window.GFUI.openPiece=openPiece;
 setCoords(coords);show('home');
 })();
