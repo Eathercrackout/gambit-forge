@@ -320,6 +320,10 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
  <div class="optRow"><span>🤖 Default AI difficulty</span><select id="oAI"></select></div>
  <div class="optRow"><span>🎓 Coach</span><button class="openCoaches">👤 <span class="coachName"></span> ▸</button></div>
  <div class="optRow"><span>🗣 Coach voice</span><button class="tgl" id="oVoice"></button></div>
+ <details class="optRow" style="display:block"><summary style="cursor:pointer">ℹ️ About &amp; credits</summary><div class="mut small" style="line-height:1.5;margin-top:6px">
+ <p><b>Gambit Forge</b>, an original army-building chess variant. Code, piece art and icon are original to this project.</p>
+ <p><b>Coach voices</b> are pre-rendered offline with <a href="https://github.com/OHF-Voice/piper1-gpl" target="_blank" rel="noopener">Piper</a> neural TTS (the engine is GPL-3.0 and is not shipped with the game; only the audio it produced is included) using the voice model <i>en_US-libritts_r-medium</i> from <a href="https://huggingface.co/rhasspy/piper-voices" target="_blank" rel="noopener">rhasspy/piper-voices</a>, trained on the <a href="http://www.openslr.org/141/" target="_blank" rel="noopener">LibriTTS-R</a> corpus (Y. Koizumi et al., 2023) — <b>licensed CC BY 4.0</b>. LibriTTS-R is derived from LibriTTS (H. Zen et al.) and LibriVox public-domain audiobook recordings. Ten different speakers from the model, lightly pitch/tempo-tuned, voice the ten coaches; the coaches are fictional and do not represent the original readers.</p>
+ <p>If a clip is unavailable, your device's built-in speech voice is used instead.</p></div></details>
  <div class="optRow"><span>📖 How to Play</span><button id="oHow">Open rules →</button></div>
 </div></section>
 <section id="guide" class="view hide"><div class="card"><div class="vhead"><button class="back" data-go="home">← Home</button><h2>Piece Guide</h2></div>
@@ -597,7 +601,7 @@ const lvName=id=>{if(id&&id.startsWith('coach:')){const c=coachById(id.slice(6))
 function renderBuilder(){let h='';
  for(const side of['w','b']){const a=armies[side],err=E.validArmy(a),cost=E.armyCost(a);
   h+=`<div class="card army"><h3><span><span class="dot ${side}" style="display:inline-block;vertical-align:-2px"></span> ${side==='w'?'White':'Black'} army</span>
-  <select data-player="${side}"><option value="human">Human</option>${LV.map(l=>`<option value="${l.id}">AI · ${l.name} (~${l.elo} Elo)</option>`).join('')}${COACHES.map(c=>`<option value="coach:${c.id}">Coach · ${c.name} (~${c.elo} Elo)</option>`).join('')}</select></h3>
+  <select data-player="${side}"><option value="human">Human</option>${LV.map(l=>`<option value="${l.id}">AI · ${l.name} (~${l.elo} Elo)</option>`).join('')}${coachById(coachId)?`<option value="coach:${coachId}">Your coach · ${coachById(coachId).name} (~${coachById(coachId).elo} Elo)</option>`:''}</select></h3>
   <div class="meter ${cost>E.BUDGET?'over':''}"><i style="width:${Math.min(100,cost/E.BUDGET*100)}%"></i></div>
   <div>${cost} / ${E.BUDGET} pts ${err?`<span class="err">⚠ ${err}</span>`:'<span class="ok">✔ valid</span>'}</div>`;
   for(const row of(side==='w'?['p','b']:['b','p'])){h+=`<div class="rowlbl">${row==='b'?'Back row':'Pawn row'}</div><div class="slots">`;
@@ -607,8 +611,8 @@ function renderBuilder(){let h='';
  const row=editing.row;
  h+=`<div class="card" style="grid-column:1/-1"><h3 style="margin:0">Palette <small style="color:var(--mut);font-weight:400">— choosing for ${editing.side==='w'?'White':'Black'} ${row==='b'?'back row':'pawn row'} slot ${'abcdefgh'[editing.i]}. Click a slot, then a piece.</small></h3>
  <div class="palette">${Object.entries(P).filter(([k,p])=>p.row===row).map(([k,p])=>`<div class="pal" data-pick="${k}" title="${p.d}">${svgPiece(k,editing.side)}<div><b>${p.n}</b><small>${p.c} pts</small></div></div>`).join('')}</div>
- <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><button data-go="home">⌂ Home</button><button class="primary" id="start">Start Game ▶</button><span style="color:var(--mut);font-size:13px">Pick Human or an AI level per side (AI vs AI works too).</span></div><h3 style="margin:14px 0 0">Board theme</h3>${themeGrid()}</div>`;
- const b=$('builder');b.innerHTML=h;bindThemes();bindGo(b);
+ <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">${coachById(coachId)?`<button id="bVsCoach">⚔ Play vs ${coachById(coachId).name}</button>`:''}<button data-go="home">⌂ Home</button><button class="primary" id="start">Start Game ▶</button><span style="color:var(--mut);font-size:13px">Pick Human or an AI level per side (AI vs AI works too).</span></div><h3 style="margin:14px 0 0">Board theme</h3>${themeGrid()}</div>`;
+ const b=$('builder');b.innerHTML=h;bindThemes();bindGo(b);const vc=$('bVsCoach');if(vc)vc.onclick=()=>{players.w='human';players.b='coach:'+coachId;renderBuilder()};
  b.querySelectorAll('[data-player]').forEach(e=>{e.value=players[e.dataset.player];e.onchange=()=>players[e.dataset.player]=e.value});
  b.querySelectorAll('[data-i]').forEach(e=>e.onclick=()=>{editing={side:e.dataset.s,row:e.dataset.r,i:+e.dataset.i};renderBuilder()});
  b.querySelectorAll('[data-pick]').forEach(e=>e.onclick=()=>{const a=armies[editing.side],arr=[...a[editing.row]];arr[editing.i]=e.dataset.pick;a[editing.row]=arr.join('');
@@ -695,7 +699,7 @@ $('undo').onclick=()=>{if(!hist.length)return;aiToken++;thinking=null;let h=hist
 $('restart').onclick=start;$('flip').onclick=()=>{flipped=!flipped;render()};
 $('tobuild').onclick=()=>{aiToken++;thinking=null;show('builder')};
 // header controls
-const setMute=()=>{$('mute').textContent=muted?'🔇 Muted':'🔊 Sound';syncOpts()};setMute();
+const setMute=()=>{$('mute').textContent=muted?'🔇 Muted':'🔊 Sound';syncOpts();if(muted)try{stopAudio()}catch(e){}};setMute();
 $('mute').onclick=()=>{muted=!muted;try{localStorage.setItem('gf_mute',muted?'1':'0')}catch(e){}setMute();if(!muted)SND.move()};
 const THEMES={wood:['Walnut','#e8cfa6','#a8703f','Warm walnut wood with subtle grain'],slate:['Slate','#c7d0da','#5b6b7d','Cool blue-grey stone'],marble:['Marble','#f1efe9','#8f9ba8','Light grey and white marble'],
  volcano:['Volcano','#4b4542','#2a2422','Dark basalt, glowing lava cracks, rising embers'],underwater:['Underwater','#3f9fa3','#13586b','Deep teal with caustic ripples, bubbles, coral & sand frame'],
@@ -871,7 +875,7 @@ function coachSVG(c){const hs=c.hs,h=c.hair;const hair=[
  return`<svg viewBox="0 0 100 100" class="cport"><circle cx="50" cy="50" r="48" fill="${c.col}"/><path d="M18 100c4-20 16-28 32-28s28 8 32 28z" fill="rgba(0,0,0,.25)"/><circle cx="50" cy="52" r="22" fill="${c.skin}"/>
  <circle cx="42" cy="52" r="2.6" fill="#222"/><circle cx="58" cy="52" r="2.6" fill="#222"/><path d="M43 62q7 5 14 0" fill="none" stroke="#7a3b2e" stroke-width="2.4" stroke-linecap="round"/>${hair}<text x="80" y="28" font-size="22" text-anchor="middle">${c.acc}</text></svg>`}
 let coachId=lsGet('gf_coach','sensei');if(coachId!=='off'&&!coachById(coachId))coachId='sensei';
-function setCoach(id){coachId=id;try{localStorage.setItem('gf_coach',id)}catch(e){}document.body.classList.toggle('nocoach',id==='off');syncCoach()}
+function setCoach(id){coachId=id;['w','b'].forEach(s=>{if(players[s].startsWith('coach:')&&players[s]!=='coach:'+id)players[s]=lsGet('gf_ailevel','inter')});if(curView==='game')drawHint();setTimeout(()=>precacheCoach(id),0);try{localStorage.setItem('gf_coach',id)}catch(e){}document.body.classList.toggle('nocoach',id==='off');syncCoach()}
 function syncCoach(){const c=coachById(coachId);document.querySelectorAll('.coachName').forEach(e=>e.textContent=c?`${c.name} (~${c.elo})`:'Off')}
 // ---- strong independent analysis for hints/callouts ----
 const STRONG={id:'analysis',depth:4,time:300,q:true,noise:0,blunder:0,full:true};const acache=new Map();
@@ -891,7 +895,7 @@ let lastRemarkPly=-1,bubbleT=null,lastRemarkAt=0,gameId=0;const URGENT=new Set([
 function say(ev,vars={},ply,force){const c=coachById(coachId);if(!c||!$('coachRow'))return false;if(!force&&ply===lastRemarkPly)return false;if(!force&&!URGENT.has(ev)&&Date.now()-lastRemarkAt<3000)return false;let t=c.l[ev];if(!t)return false;
  for(const k in vars)t=t.split('{'+k+'}').join(vars[k]);if(!force){lastRemarkPly=ply;lastRemarkAt=Date.now()}
  const b=$('coachBubble');b.innerHTML=`<span class="cav">${coachSVG(c)}</span><span class="ctx"><b>${c.name}:</b> ${t}</span>`;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
- speakCoach(c,t);clearTimeout(bubbleT);bubbleT=setTimeout(()=>b.classList.remove('show'),7000);return true}
+ playCoach(c,ev,vars,t);clearTimeout(bubbleT);bubbleT=setTimeout(()=>b.classList.remove('show'),7000);return true}
 function onMoved(pre,m,post){if(coachId==='off')return;const col=pre.turn,opp=col==='w'?'b':'w',ply=post.ply;
  const gid=gameId;setTimeout(()=>{if(gid!==gameId||!(S===post||hist.some(h=>h.S===post)))return;
   if(!isAI(col)){ // critique the human's move
@@ -900,40 +904,35 @@ function onMoved(pre,m,post){if(coachId==='off')return;const col=pre.turn,opp=co
    if(E.inCheck(post,col))ev='kingDanger';
    else if(kingCapture(pre,col))ev='missedWin';
    else{const a0=analyze(pre),a1=analyze(post),drop=a0.score+a1.score;window.__lastDrop=drop;const h=hanging(post,col);
-    if(drop>=200){if(h){ev='hang';v={p:nm(h.t)}}else ev='blunder'}
+    if(drop>=200){if(h){ev='hang';v={p:nm(h.t),pt:h.t}}else ev='blunder'}
     else if(E.inCheck(post,opp))ev='check';
     else{const sq=(m.k==='sh'||m.k==='ex')?m.f:m.t;const at=m.k==='ex'?null:attackFrom(post,sq,col);
-     if(at){ev='attack';v={p:nm(at.p),t:nm(at.t)}}
+     if(at){ev='attack';v={p:nm(at.p),t:nm(at.t),pt:at.p,tt:at.t}}
      else if(a0.best&&E.code(a0.best)===E.code(m)&&(m.x||m.k!=='m')&&drop<=20)ev='great';
      else if(drop>=90)ev='inaccuracy'}}
    (window.__coachLog=window.__coachLog||[]).push({ply,ev,mv:E.sqName(m.f>=0?m.f:0)+E.sqName(m.t>=0?m.t:0)});if(window.__coachLog.length>50)window.__coachLog.shift();
    if(ev){say(ev,v,ply);return}}
   if(!post.over&&!isAI(post.turn)){ // warn the human who moves next
-   const me=post.turn;if(E.inCheck(post,me))say('threatKing',{},ply);else{const h=hanging(post,me);if(h&&val(h.t)>=3)say('threatPiece',{p:nm(h.p),t:nm(h.t)},ply)}}},60)}
+   const me=post.turn;if(E.inCheck(post,me))say('threatKing',{},ply);else{const h=hanging(post,me);if(h&&val(h.t)>=3)say('threatPiece',{p:nm(h.p),t:nm(h.t),pt:h.p,tt:h.t},ply)}}},60)}
 // ---- two-stage hint ----
 let hint={ply:-1,stage:0,m:null};
 const sideOf=sq=>{const c=sq&7;return c<=2?'on the queenside':c>=5?'on the kingside':'in the center'};
-function nudgeText(s,m){const p=s.bd[m.f>=0?m.f:0],col=s.turn;
- if(m.x&&m.x.some(i=>s.bd[i]&&s.bd[i].t==='K'&&s.bd[i].c!==col))return'The enemy King is exposed — look for a way to capture it!';
- if(m.k==='pass')return'Nothing can move — you must pass this turn.';
- if(m.k==='sh')return'One of your ranged pieces has a target.';
- if(m.k==='ex')return'Something explosive is possible near the enemy.';
- if(m.k==='sw')return'A swap between two of your pieces would help.';
- if(m.k==='cs')return'Your King would be safer tucked away — think about castling.';
- if(m.k==='v'&&m.x)return'Someone can leap over an enemy and capture it.';
- const nx=E.applyMove(s,m);
- if(m.x)return'Look for a capture '+sideOf(m.t)+'.';
- if(p&&'PH'.includes(p.t)&&nx.bd[m.t]&&nx.bd[m.t].t==='Q')return'One of your pawns is ready to promote.';
- if(E.inCheck(nx,col==='w'?'b':'w'))return'You can put their King under pressure '+sideOf(m.t)+'.';
- if(nx.bd[m.t]&&nx.bd[m.t].t==='F')return'A freeze could lock down some enemy pieces.';
- if(p&&p.t==='K')return'Your King wants a safer square.';
- return'Improve a piece '+sideOf(m.t)+'.'}
-function hintClick(){if(!S||S.over||isAI(S.turn)||thinking)return;if(hint.ply!==S.ply)hint={ply:S.ply,stage:0,m:null};
+const NUDGES={"king":"The enemy King is exposed. Look for a way to capture it!","pass":"Nothing can move, so you must pass this turn.","shot":"One of your ranged pieces has a target.","boom":"Something explosive is possible near the enemy.","swap":"A swap between two of your pieces would help.","castle":"Your King would be safer tucked away. Think about castling.","vault":"Someone can leap over an enemy and capture it.",
+"cap_q":"Look for a capture on the queenside.","cap_k":"Look for a capture on the kingside.","cap_c":"Look for a capture in the center.","promo":"One of your pawns is ready to promote.",
+"check_q":"You can put their King under pressure on the queenside.","check_k":"You can put their King under pressure on the kingside.","check_c":"You can put their King under pressure in the center.",
+"freeze":"A freeze could lock down some enemy pieces.","kingsafe":"Your King wants a safer square.","imp_q":"Improve a piece on the queenside.","imp_k":"Improve a piece on the kingside.","imp_c":"Improve a piece in the center."};const sk=sq=>{const x=sq&7;return x<=2?'q':x>=5?'k':'c'};
+function nudgeKey(s,m){const p=s.bd[m.f>=0?m.f:0],col=s.turn;
+ if(m.x&&m.x.some(i=>s.bd[i]&&s.bd[i].t==='K'&&s.bd[i].c!==col))return'king';
+ if(m.k==='pass')return'pass';if(m.k==='sh')return'shot';if(m.k==='ex')return'boom';if(m.k==='sw')return'swap';if(m.k==='cs')return'castle';if(m.k==='v'&&m.x)return'vault';
+ const nx=E.applyMove(s,m);if(m.x)return'cap_'+sk(m.t);
+ if(p&&'PH'.includes(p.t)&&nx.bd[m.t]&&nx.bd[m.t].t==='Q')return'promo';
+ if(E.inCheck(nx,col==='w'?'b':'w'))return'check_'+sk(m.t);
+ if(nx.bd[m.t]&&nx.bd[m.t].t==='F')return'freeze';if(p&&p.t==='K')return'kingsafe';return'imp_'+sk(m.t)}
+function hintClick(){if(coachId==='off'){openCoaches();return}if(!S||S.over||isAI(S.turn)||thinking)return;if(hint.ply!==S.ply)hint={ply:S.ply,stage:0,m:null};
  hint.stage=(hint.stage+1)%3;
- if(hint.stage===1){const a=analyze(S);hint.m=a.best;if(!hint.m){hint.stage=0;return}const c=coachById(coachId)||COACHES[6];
-  const prev=coachId;if(coachId==='off')coachId=c.id;say('nudge',{n:nudgeText(S,hint.m)},S.ply,true);coachId=prev}
+ if(hint.stage===1){const a=analyze(S);hint.m=a.best;if(!hint.m){hint.stage=0;return}const nk=nudgeKey(S,hint.m);say('nudge',{n:NUDGES[nk],nk},S.ply,true)}
  render()}
-function hintLabel(){const b=$('hintBtn');if(!b)return;const can=S&&!S.over&&!isAI(S.turn)&&!thinking;b.disabled=!can;const st=hint.ply===(S&&S.ply)?hint.stage:0;
+function hintLabel(){const b=$('hintBtn');if(!b)return;if(coachId==='off'){b.disabled=false;b.classList.remove('on');b.querySelector('.hl2').textContent='Pick a coach';b.title='Hints come from your coach — tap to pick one';return}b.title='Hint from your coach: tap once for a nudge, again to show the move, again to hide';const can=S&&!S.over&&!isAI(S.turn)&&!thinking;b.disabled=!can;const st=hint.ply===(S&&S.ply)?hint.stage:0;
  b.querySelector('.hl2').textContent=st===0?'Hint':st===1?'Show move':'Hide';b.classList.toggle('on',st>0)}
 function drawHint(){hintLabel();const L=$('hintL');if(!L)return;L.innerHTML='';document.querySelectorAll('.pc.hintFrom').forEach(e=>e.classList.remove('hintFrom'));
  if(!S||hint.ply!==S.ply||hint.stage!==2||!hint.m||hint.m.f<0)return;const m=hint.m;
@@ -951,10 +950,10 @@ function coachDetail(id){const c=coachById(id),m=$('coachModal');const canSpeak=
  m.querySelector('.cmBody').innerHTML=`<div class="cdet"><div class="cdPort">${coachSVG(c)}</div><h3>${c.name}</h3><div class="tags"><span class="tag">Plays at ~${c.elo} Elo</span>${coachId===c.id?'<span class="tag">Your coach</span>':''}</div>
  <p>${c.pers}</p><blockquote>“${c.sample}”</blockquote><button id="cVoice"${canSpeak?'':' disabled title="Speech not supported on this device"'}>🔊 Voice preview</button>
  <p class="mut small">When you play <b>against</b> ${c.name}, they make moves at about <b>${c.elo} Elo</b>. As your <b>coach</b>, their hints and callouts always come from a strong analysis engine, independent of their playing strength, so every coach gives good advice.</p>
- <div class="btns"><button class="primary" id="cChoose">🎓 Choose as coach</button><button id="cPlay">⚔ Play vs ${c.name}</button><button id="cBack">← All coaches</button></div></div>`;
- $('cVoice').onclick=()=>{try{speechSynthesis.cancel();const was=voiceOn;voiceOn=true;const m0=muted;muted=false;speakCoach(c,c.sample);voiceOn=was;muted=m0}catch(e){}};
- $('cChoose').onclick=()=>{setCoach(c.id);closeCoaches();say('greet',{},-2,true)};
- $('cPlay').onclick=()=>{closeCoaches();players.w='human';players.b='coach:'+c.id;show('builder')};$('cBack').onclick=openCoaches}
+ <div class="btns"><button class="primary" id="cChoose">🎓 Choose as coach</button>${coachId===c.id?`<button id="cPlay">⚔ Play vs ${c.name}</button>`:`<span class="mut small" style="align-self:center">Choose ${c.name} as your coach to unlock playing against them.</span>`}<button id="cBack">← All coaches</button></div></div>`;
+ $('cVoice').onclick=()=>{try{speechSynthesis.cancel();primeVoice();playClips([`${c.id}/sample`],c,c.sample,true)}catch(e){}};
+ $('cChoose').onclick=()=>{setCoach(c.id);say('greet',{},-2,true);coachDetail(c.id)};
+ const cp=$('cPlay');if(cp)cp.onclick=()=>{closeCoaches();players.w='human';players.b='coach:'+c.id;show('builder')};$('cBack').onclick=openCoaches}
 function closeCoaches(){$('coachModal').classList.add('hide')}
 document.querySelectorAll('.openCoaches').forEach(b=>b.onclick=openCoaches);$('cmClose').onclick=closeCoaches;$('coachModal').onclick=e=>{if(e.target.id==='coachModal')closeCoaches()};
 $('hintBtn').onclick=hintClick;setCoach(coachId);
@@ -968,13 +967,31 @@ function loadVoices(){if(!SS)return;try{voices=SS.getVoices()||[]}catch(e){voice
 if(SS){loadVoices();try{SS.addEventListener?SS.addEventListener('voiceschanged',loadVoices):(SS.onvoiceschanged=loadVoices)}catch(e){SS.onvoiceschanged=loadVoices}}
 function voiceFor(c){const en=voices.filter(v=>/^en/i.test(v.lang));const pool=en.length?en:voices;if(!pool.length)return null;const i=COACHES.indexOf(c);return pool[i%pool.length]}
 function speakCoach(c,text){if(!SS||!voiceOn||muted||!c)return;try{SS.cancel();const u=new SpeechSynthesisUtterance(text);u.pitch=c.pitch;u.rate=c.rate;u.volume=1;u.lang='en-US';const v=voiceFor(c);if(v)u.voice=v;SS.speak(u)}catch(e){}}
-function primeVoice(){if(primed||!SS)return;primed=true;loadVoices();try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;SS.speak(u)}catch(e){}}
+function primeVoice(){if(!audioEl){audioEl=new Audio();audioEl.src=AUDBASE+'silence.mp3';audioEl.play().catch(()=>{})}if(primed||!SS)return;primed=true;loadVoices();try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;SS.speak(u)}catch(e){}}
 addEventListener('pointerdown',primeVoice,{once:true,capture:true});addEventListener('keydown',primeVoice,{once:true,capture:true});
-function setVoice(on){voiceOn=on;try{localStorage.setItem('gf_voice',on?'1':'0')}catch(e){}if(!on&&SS)try{SS.cancel()}catch(e){}syncVoice()}
+function setVoice(on){voiceOn=on;if(!on)stopAudio();try{localStorage.setItem('gf_voice',on?'1':'0')}catch(e){}if(!on&&SS)try{SS.cancel()}catch(e){}syncVoice()}
 function syncVoice(){const o=$('oVoice');if(o){o.textContent=voiceOn?'On':'Off';o.classList.toggle('on',voiceOn)}const d=$('dVoice');if(d){d.textContent='🗣 Voice: '+(voiceOn?'On':'Off');d.classList.toggle('on',voiceOn)}}
 $('oVoice').onclick=()=>setVoice(!voiceOn);$('dVoice').onclick=()=>setVoice(!voiceOn);syncVoice();
 $('hCoach').onclick=()=>{primeVoice();openCoaches()};
-window.GFUI.say=say;window.GFUI.setVoice=setVoice;
+window.GFUI.say=say;window.GFUI.clipKeys=(id,ev,v)=>clipKeys(coachById(id),ev,v);setTimeout(()=>precacheCoach(coachId),4000);window.GFUI.setVoice=setVoice;
+
+// ---- pre-rendered neural voice clips (Piper, en_US-libritts_r-medium) ----
+const AUD={"pip":["attack_0","attack_1","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"],"grandma":["attack_0","attack_1","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","threatPiece_2","win"],"blaze":["attack_0","attack_1","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"],"lark":["attack_0","attack_1","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"],"bramble":["attack_0","attack_1","attack_2","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","threatPiece_2","win"],"quill":["attack_0","attack_1","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","threatPiece_2","win"],"sensei":["attack_0","attack_1","attack_2","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"],"vex":["attack_0","attack_1","attack_2","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"],"duchess":["attack_0","attack_1","attack_2","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"],"forge":["attack_0","attack_1","blunder","check","great","greet","hang_A","hang_B","hang_C","hang_F","hang_G","hang_H","hang_L","hang_N","hang_P","hang_Q","hang_R","hang_S","hang_V","hang_W","hang_X","inaccuracy","kingDanger","missedWin","nudge_boom","nudge_cap_c","nudge_cap_k","nudge_cap_q","nudge_castle","nudge_check_c","nudge_check_k","nudge_check_q","nudge_freeze","nudge_imp_c","nudge_imp_k","nudge_imp_q","nudge_king","nudge_kingsafe","nudge_pass","nudge_promo","nudge_shot","nudge_swap","nudge_vault","piece_A","piece_B","piece_C","piece_F","piece_G","piece_H","piece_K","piece_L","piece_N","piece_P","piece_Q","piece_R","piece_S","piece_V","piece_W","piece_X","sample","threatKing","threatPiece_0","threatPiece_1","win"]};const AUDBASE='audio/';const blobs=new Map();let audioEl=null,playTok=0;
+function clipKeys(c,ev,v){const has=k=>AUD[c.id]&&AUD[c.id].includes(k);const out=[];
+ if(ev==='hang')out.push('hang_'+v.pt);
+ else if(ev==='attack'||ev==='threatPiece'){const tpl=c.l[ev];const segs=tpl.split(/\{[pt]\}/);const ph=(tpl.match(/\{[pt]\}/g)||[]);
+  segs.forEach((s,i)=>{if(/[A-Za-z]/.test(s))out.push(ev+'_'+i);if(ph[i])out.push('piece_'+(ph[i]==='{p}'?v.pt:v.tt))})}
+ else if(ev==='nudge')out.push('nudge_'+v.nk);else out.push(ev);
+ return out.every(has)?out.map(k=>c.id+'/'+k):null}
+async function getClip(path){if(blobs.has(path))return blobs.get(path);const r=await fetch(AUDBASE+path+'.mp3');if(!r.ok)throw new Error('missing '+path);const u=URL.createObjectURL(await r.blob());blobs.set(path,u);return u}
+function stopAudio(){playTok++;if(audioEl){try{audioEl.pause()}catch(e){}}if(SS)try{SS.cancel()}catch(e){}}
+async function playClips(paths,c,text,force){stopAudio();if(!force&&(!voiceOn||muted))return;const tok=playTok;
+ if(!audioEl)audioEl=new Audio();
+ try{for(const p of paths){const url=await getClip(p);if(tok!==playTok)return;audioEl.src=url;await audioEl.play();await new Promise(res=>{audioEl.onended=res;audioEl.onpause=res});if(tok!==playTok)return;await new Promise(r=>setTimeout(r,60))}}
+ catch(e){if(tok===playTok)speakCoach(c,text)}}
+function playCoach(c,ev,v,text){if(!voiceOn||muted)return;const ks=clipKeys(c,ev,v);if(ks)playClips(ks,c,text);else speakCoach(c,text)}
+function precacheCoach(id){if(!AUD[id]||!('serviceWorker'in navigator)||!navigator.serviceWorker.controller)return;const list=AUD[id].map(k=>AUDBASE+id+'/'+k+'.mp3');
+ let i=0;const next=()=>{if(i>=list.length)return;fetch(list[i++]).catch(()=>{}).finally(()=>setTimeout(next,40))};next()}
 
 window.GFUI.show=show;window.GFUI.openPiece=openPiece;
 setCoords(coords);show('home');
