@@ -240,6 +240,33 @@ body.nocoords .sq .co{display:none}
 body.noanim .mpc.demo,body.noanim .mpc.victim,body.noanim .mfx{animation:none}body.noanim .mfx{display:none}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0;font-size:13px}.legend span{display:flex;align-items:center;gap:6px}
 .legend i{position:relative;display:inline-block;width:22px;height:22px;border-radius:4px;background:var(--light)}
+
+/* ---- full-screen game ---- */
+.gbar,.drawerHead,.dOnly,#gBackdrop{display:none}
+body.v-game header,body.v-game #rules{display:none!important}
+body.v-game main{padding:0;max-width:none}
+body.v-game{--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);overflow:hidden}
+body.v-game #game{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:var(--st) var(--sr) var(--sb) var(--sl);
+ --bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100vh - var(--st) - var(--sb) - 64px));--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dvh - var(--st) - var(--sb) - 64px))}
+body.v-game .frame{padding:4px;border-radius:8px;margin:auto 0}
+@media not ((orientation:landscape) and (max-height:560px)){body.v-game #game{justify-content:flex-start;padding-top:calc(var(--st) + 4px)}}
+body.v-game #board{width:var(--bs)}
+body.v-game .gbar{display:flex;align-items:center;justify-content:space-between;gap:8px;width:calc(var(--bs) + 8px);height:48px;flex:none}
+#gStatus{font-size:15px;font-weight:700;padding:6px 12px;border-radius:20px;background:rgba(12,14,20,.82);color:#fff;border:1px solid rgba(255,255,255,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100% - 110px)}
+#gStatus .dot{display:inline-block;width:12px;height:12px;vertical-align:-1px;margin-right:6px}
+#gStatus.chk{background:#b3261e;border-color:#fff}#gStatus.win{background:linear-gradient(90deg,#6b4f12,#c99a32)}
+#gear{min-width:44px;height:44px;display:flex;align-items:center;gap:6px;padding:0 14px;border-radius:22px;background:rgba(12,14,20,.88);color:#fff;border:2px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.5);font-weight:700;font-size:15px}
+#gear .gi{font-size:20px;line-height:1}#gear:hover,#gear:focus-visible{background:#000;border-color:var(--acc);outline:none}
+@media (orientation:landscape) and (max-height:560px){
+ body.v-game #game{flex-direction:row;--bs:min(calc(100vw - var(--sl) - var(--sr) - 84px),calc(100vh - var(--st) - var(--sb) - 12px));--bs:min(calc(100vw - var(--sl) - var(--sr) - 84px),calc(100dvh - var(--st) - var(--sb) - 12px))}
+ body.v-game .gbar{order:2;flex-direction:column-reverse;justify-content:flex-end;width:64px;height:calc(var(--bs) + 8px)}
+ #gStatus{writing-mode:vertical-rl;max-width:none;max-height:calc(100% - 60px);padding:12px 6px}#gStatus .dot{margin:0 0 6px}
+ #gear{flex-direction:column;height:auto;padding:8px 4px;gap:2px;font-size:12px;border-radius:14px}}
+body.v-game .side{display:flex;position:fixed;top:0;right:0;bottom:0;width:min(92vw,380px);overflow-y:auto;background:var(--card);border-left:1px solid #3a4256;padding:calc(12px + var(--st)) calc(12px + var(--sr)) calc(12px + var(--sb)) 12px;z-index:60;transform:translateX(105%);transition:transform .25s ease;box-shadow:-10px 0 40px rgba(0,0,0,.5)}
+body.v-game.drawer .side{transform:none}
+body.v-game .drawerHead,body.v-game .dOnly{display:flex}.drawerHead{justify-content:space-between;align-items:center;font-size:18px}
+body.v-game.drawer #gBackdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55}
+body.v-game #log{height:160px;flex:none}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute"><defs>
 <linearGradient id="gW" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9ccb3"/></linearGradient>
@@ -267,12 +294,16 @@ body.noanim .mpc.demo,body.noanim .mpc.victim,body.noanim .mfx{animation:none}bo
 <section id="howto" class="view hide"><div class="vhead"><button class="back" data-go="options">← Back</button><h2>How to Play</h2></div></section>
 <section id="builder" class="view hide"></section>
 <section id="game" class="view hide">
+ <div class="gbar"><span id="gStatus" aria-live="polite"></span><button id="gear" aria-label="Open game menu" title="Game menu"><span class="gi">⚙</span><span class="gl2">Menu</span></button></div>
  <div class="frame"><div id="board"><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="fx"></div></div></div>
- <aside class="side">
+ <div id="gBackdrop"></div>
+ <aside class="side" id="side">
+  <div class="drawerHead"><b>Game menu</b><button id="gClose" aria-label="Close menu">✕ Close</button></div>
   <div class="player" id="pTop"></div>
   <div id="status"></div>
   <div class="player" id="pBot"></div>
   <div class="btns"><button id="undo">↶ Undo</button><button id="restart">⟲ Restart</button><button id="flip">⇅ Flip</button><button id="tobuild">⚒ Army Builder</button><button data-go="home">⌂ Home</button></div>
+  <div class="btns dOnly"><button id="dAnim"></button><button id="dSound"></button><button id="dCoords"></button><button id="dHow">📖 How to Play</button></div>
   <details class="card" id="themeBox"><summary style="cursor:pointer;font-weight:700">🎨 Board theme: <span class="themeName"></span></summary><div class="themeGrid"></div></details>
   <div class="card" id="info"></div>
   <div id="log"></div>
@@ -548,13 +579,13 @@ function renderBuilder(){let h='';
   if(editing.i<7)editing.i++;SND.move();renderBuilder()});
  b.querySelectorAll('[data-preset]').forEach(e=>e.onclick=()=>{armies[e.dataset.s]={...E.PRESETS[e.dataset.preset]};renderBuilder()});
  b.querySelectorAll('[data-rand]').forEach(e=>e.onclick=()=>{armies[e.dataset.rand]=E.randomArmy();renderBuilder()});
- $('start').onclick=()=>{const e=E.validArmy(armies.w)||E.validArmy(armies.b);if(e)return alert(e);actx();start()}}
+ $('start').onclick=()=>{const e=E.validArmy(armies.w)||E.validArmy(armies.b);if(e)return alert(e);actx();tryFS();start()}}
 // ---------- Game ----------
 const isAI=c=>players[c]!=='human';
 function start(){aiToken++;thinking=null;S=E.newGame(armies.w,armies.b);hist=[];logs=[];caps={w:[],b:[]};sel=null;last=null;aiInfo={w:'',b:''};
  flipped=isAI('w')&&!isAI('b');show('game');render();nextTurn()}
 const disp=i=>{const r=i>>3,c=i&7;return flipped?[7-r,7-c]:[r,c]};
-function renderPlayers(){const top=flipped?'w':'b',bot=flipped?'b':'w';
+function renderPlayers(){const top=flipped?'w':'b',bot=flipped?'b':'w';gStat();
  for(const[el,c]of[[$('pTop'),top],[$('pBot'),bot]]){el.className='player'+(!S.over&&S.turn===c?' active':'');
   el.innerHTML=`<span class="dot ${c}"></span><div><div class="nm">${c==='w'?'White':'Black'}${thinking===c?'<span class="think"></span>':''}</div><div class="lv">${lvName(players[c])}${aiInfo[c]?' · '+aiInfo[c]:''}</div></div>
   <div class="caps">${caps[c].map(t=>svgPiece(t,c==='w'?'b':'w')).join('')}</div>`}}
@@ -679,7 +710,9 @@ window.GFUI={get S(){return S},players,armies,start,doMove,click,get thinking(){
 // ---------- Views: home / options / guide ----------
 function lsGet(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}}
 const VIEWS=['home','options','guide','gdetail','howto','builder','game'];
-function show(v){VIEWS.forEach(x=>$(x).classList.toggle('hide',x!==v));VIEWS.forEach(x=>document.body.classList.toggle('v-'+x,x===v));
+let curView='home';
+function show(v){document.body.classList.remove('drawer');if(v==='howto'){const bk=$('howto').querySelector('.back');bk.dataset.go=curView==='game'?'game':'options';bk.textContent=curView==='game'?'← Back to game':'← Back'}
+ if(curView==='game'&&v!=='game'&&v!=='howto'&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});curView=v;VIEWS.forEach(x=>$(x).classList.toggle('hide',x!==v));VIEWS.forEach(x=>document.body.classList.toggle('v-'+x,x===v));
  const rules=$('rules');rules.classList.toggle('hide',!['builder','game','howto'].includes(v));
  if(v==='howto')$('howto').appendChild(rules);else if(rules.parentNode!==document.querySelector('main'))document.querySelector('main').appendChild(rules);
  if(v==='builder')renderBuilder();if(v==='guide')renderGuide();if(v==='home'){aiToken++;thinking=null}window.scrollTo(0,0)}
@@ -687,7 +720,7 @@ function bindGo(root){root.querySelectorAll('[data-go]').forEach(b=>b.onclick=()
 bindGo(document);
 let coords=true;try{coords=localStorage.getItem('gf_coords')!=='0'}catch(e){}
 function setCoords(on){coords=on;document.body.classList.toggle('nocoords',!on);try{localStorage.setItem('gf_coords',on?'1':'0')}catch(e){}syncOpts()}
-function syncOpts(){try{syncOpts2()}catch(e){}}
+function syncOpts(){try{syncOpts2();syncD()}catch(e){}}
 function syncOpts2(){const t=(id,on,a,b)=>{const e=$(id);if(e){e.textContent=on?a:b;e.classList.toggle('on',on)}};
  t('oAnim',anim,'On','Off');t('oSound',!muted,'On','Off');t('oCoords',coords,'On','Off');const s=$('oAI');if(s)s.value=lsGet('gf_ailevel','inter')}
 $('oAI').innerHTML=LV.map(l=>`<option value="${l.id}">${l.name} (~${l.elo} Elo)</option>`).join('');
@@ -736,6 +769,20 @@ function openPiece(t){const p=P[t];$('gdName').textContent=p.n;
  $('gdBody').innerHTML=`<div class="gd"><div class="gdArt">${svgPiece(t,'w')}<div class="tags"><span class="tag">${p.row==='x'?'Promotion only':p.c+' points'}</span><span class="tag">${p.row==='b'?'Back row':p.row==='p'?'Pawn row':'From Squire'}</span>${'KQRBNP'.includes(t)?'<span class="tag">Standard</span>':'<span class="tag">Custom</span>'}</div></div>
  <div><p style="font-size:16px;line-height:1.5"><b>How it moves:</b> ${p.d}</p>${NOTES[t]?`<p class="mut" style="line-height:1.5">${NOTES[t]}</p>`:''}
  ${miniBoard(t)}<p class="mut" style="font-size:12px">Diagram generated by the game's own move rules: the ${p.n} on ${E.sqName(scenario(t).at)} with a friendly pawn and some enemy pawns nearby. The looping animation shows one example move.</p></div></div>`;show('gdetail')}
+
+// ---------- full-screen game bar + drawer ----------
+function gStat(){const g=$('gStatus');if(!g||!S)return;const chk=!S.over&&E.inCheck(S,S.turn);g.className=S.over?(S.over==='draw'?'':'win'):chk?'chk':'';
+ if(S.over)g.textContent=S.over==='draw'?'Draw':(S.over==='w'?'White':'Black')+' wins! 👑';
+ else g.innerHTML=`<span class="dot ${S.turn}"></span>${S.turn==='w'?'White':'Black'}${isAI(S.turn)?' (AI)':''}${chk?' · CHECK!':thinking?' · thinking<span class="think"></span>':' to move'}`}
+const openD=o=>{document.body.classList.toggle('drawer',o);if(o)$('gClose').focus()};
+$('gear').onclick=()=>openD(true);$('gClose').onclick=()=>openD(false);$('gBackdrop').onclick=()=>openD(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')openD(false)});
+$('dAnim').onclick=()=>setAnim(!anim,true);$('dSound').onclick=()=>$('mute').click();$('dCoords').onclick=()=>setCoords(!coords);
+$('dHow').onclick=()=>{openD(false);show('howto')};
+['undo','restart','flip'].forEach(id=>$(id).addEventListener('click',()=>openD(false)));
+function syncD(){const t=(id,on,lbl)=>{const e=$(id);if(e){e.textContent=lbl+(on?': On':': Off');e.classList.toggle('on',on)}};t('dAnim',anim,'✨ Anim');t('dSound',!muted,'🔊 Sound');t('dCoords',coords,'🔤 Coords')}
+function tryFS(){try{const st=matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
+ if(!st&&document.fullscreenEnabled&&!document.fullscreenElement&&matchMedia('(pointer:coarse)').matches)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}}
 window.GFUI.show=show;window.GFUI.openPiece=openPiece;
 setCoords(coords);show('home');
 })();
