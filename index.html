@@ -835,7 +835,7 @@ function renderBuilder(){let h='';
 // ---------- Game ----------
 const isAI=c=>players[c]!=='human';
 function start(){aiToken++;thinking=null;S=E.newGame(armies.w,armies.b);hist=[];logs=[];caps={w:[],b:[]};sel=null;last=null;aiInfo={w:'',b:''};
- flipped=isAI('w')&&!isAI('b');show('game');render();nextTurn()}
+ flipped=isAI('w')&&!isAI('b');show('game');if(isAI('w')&&isAI('b')){try{stopAudio()}catch(e){}const cb=$('coachBubble');if(cb){cb.innerHTML='';cb.classList.remove('show')}}render();nextTurn()}
 const disp=i=>{const r=i>>3,c=i&7;return flipped?[7-r,7-c]:[r,c]};
 function renderPlayers(){const top=flipped?'w':'b',bot=flipped?'b':'w';gStat();
  for(const[el,c]of[[$('pTop'),top],[$('pBot'),bot]]){el.className='player'+(!S.over&&S.turn===c?' active':'');
@@ -1296,7 +1296,8 @@ function rotOf(cid,ev,n){const k=cid+'.'+ev;let r=ROT[k];if(!r||!Array.isArray(r
 function nextVar(cid,ev,n){const r=rotOf(cid,ev,n),v=r.o[r.i++];try{localStorage.setItem('gf_rot',JSON.stringify(ROT))}catch(e){}setTimeout(()=>prefetchNext(cid,ev),50);return v}
 function peekVar(cid,ev){const pool=LINES[cid]&&LINES[cid][ev];if(!pool)return-1;const r=rotOf(cid,ev,pool.length);return r.o[r.i]}
 function prefetchNext(cid,ev){const v=peekVar(cid,ev);if(v>=0&&voiceOn&&!muted)getClip(`${cid}/${ev}_${v}`).catch(()=>{})}
-function say(ev,vars={},ply,force){const c=coachById(coachId);if(!c||!$('coachRow'))return false;const co=cOpt(c.id);if(!force&&co.chat==='quiet'&&!URGENT.has(ev))return false;if(!force&&co.chat!=='chatty'&&/^(capMine|capTheirs|thinking|idle)$/.test(ev)&&Math.random()<.35)return false;if(!force&&ply===lastRemarkPly)return false;if(!force&&!URGENT.has(ev)&&Date.now()-lastRemarkAt<3000)return false;const pool=LINES[c.id]&&LINES[c.id][ev];let vi=-1,t;if(pool){vi=nextVar(c.id,ev,pool.length);t=pool[vi]}else t=c.l[ev];if(!t)return false;
+const bothAI=()=>S&&curView==='game'&&isAI('w')&&isAI('b');window.GFUI_MUTED=()=>bothAI();
+function say(ev,vars={},ply,force){if(bothAI()){const b=$('coachBubble');if(b){b.innerHTML='';b.classList.remove('show')}return false}const c=coachById(coachId);if(!c||!$('coachRow'))return false;const co=cOpt(c.id);if(!force&&co.chat==='quiet'&&!URGENT.has(ev))return false;if(!force&&co.chat!=='chatty'&&/^(capMine|capTheirs|thinking|idle)$/.test(ev)&&Math.random()<.35)return false;if(!force&&ply===lastRemarkPly)return false;if(!force&&!URGENT.has(ev)&&Date.now()-lastRemarkAt<3000)return false;const pool=LINES[c.id]&&LINES[c.id][ev];let vi=-1,t;if(pool){vi=nextVar(c.id,ev,pool.length);t=pool[vi]}else t=c.l[ev];if(!t)return false;
  for(const k in vars)t=t.split('{'+k+'}').join(vars[k]);if(!force){lastRemarkPly=ply;lastRemarkAt=Date.now()}
  const b=$('coachBubble');b.innerHTML=`<span class="cav">${coachSVG(c)}</span><span class="ctx"><b>${c.name}:</b> ${t}</span>`;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
  playCoach(c,ev,Object.assign({},vars,{vi}),t);clearTimeout(bubbleT);bubbleT=setTimeout(()=>b.classList.remove('show'),7000);return true}
@@ -1385,7 +1386,7 @@ let voiceOn=lsGet('gf_voice','1')!=='0',voices=[],primed=false;const SS=('speech
 function loadVoices(){if(!SS)return;try{voices=SS.getVoices()||[]}catch(e){voices=[]}}
 if(SS){loadVoices();try{SS.addEventListener?SS.addEventListener('voiceschanged',loadVoices):(SS.onvoiceschanged=loadVoices)}catch(e){SS.onvoiceschanged=loadVoices}}
 function voiceFor(c){const en=voices.filter(v=>/^en/i.test(v.lang));const pool=en.length?en:voices;if(!pool.length)return null;const i=COACHES.indexOf(c);return pool[i%pool.length]}
-function speakCoach(c,text){if(!SS||!voiceOn||muted||!c)return;try{SS.cancel();const u=new SpeechSynthesisUtterance(text);u.pitch=c.pitch;u.rate=c.rate;u.volume=1;u.lang='en-US';const v=voiceFor(c);if(v)u.voice=v;SS.speak(u)}catch(e){}}
+function speakCoach(c,text){if(bothAI())return;if(!SS||!voiceOn||muted||!c)return;try{SS.cancel();const u=new SpeechSynthesisUtterance(text);u.pitch=c.pitch;u.rate=c.rate;u.volume=1;u.lang='en-US';const v=voiceFor(c);if(v)u.voice=v;SS.speak(u)}catch(e){}}
 function primeVoice(){if(!audioEl){audioEl=new Audio();audioEl.src=AUDBASE+'silence.mp3';audioEl.play().catch(()=>{})}if(primed||!SS)return;primed=true;loadVoices();try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;SS.speak(u)}catch(e){}}
 addEventListener('pointerdown',primeVoice,{once:true,capture:true});addEventListener('keydown',primeVoice,{once:true,capture:true});
 function setVoice(on){voiceOn=on;if(!on)stopAudio();try{localStorage.setItem('gf_voice',on?'1':'0')}catch(e){}if(!on&&SS)try{SS.cancel()}catch(e){}syncVoice()}
@@ -1402,7 +1403,7 @@ function clipKeys(c,ev,v){const L=AUD[c.id],has=k=>!!L&&(L.includes(k)||L.includ
  return out.every(has)?out.map(k=>c.id+'/'+k):null}
 async function getClip(path){if(blobs.has(path))return blobs.get(path);const r=await fetch(AUDBASE+path+'.mp3');if(!r.ok)throw new Error('missing '+path);const u=URL.createObjectURL(await r.blob());blobs.set(path,u);return u}
 function stopAudio(){playTok++;if(audioEl){try{audioEl.pause()}catch(e){}}if(SS)try{SS.cancel()}catch(e){}}
-async function playClips(paths,c,text,force){stopAudio();if(!force&&(!voiceOn||muted))return;const tok=playTok;
+async function playClips(paths,c,text,force){stopAudio();if(bothAI())return;if(!force&&(!voiceOn||muted))return;const tok=playTok;
  if(!audioEl)audioEl=new Audio();
  try{for(const p of paths){const url=blobs.has(p)?blobs.get(p):await Promise.race([getClip(p),new Promise((_,rj)=>setTimeout(()=>rj(new Error('slow')),force?4000:1500))]);if(tok!==playTok)return;audioEl.src=url;const co=cOpt(c.id);audioEl.volume=co.vol;audioEl.playbackRate=co.rate;await audioEl.play();await new Promise(res=>{audioEl.onended=res;audioEl.onpause=res});if(tok!==playTok)return;await new Promise(r=>setTimeout(r,60))}}
  catch(e){/* clip not downloaded yet or missing: text-only bubble; it keeps downloading for next time */}}
