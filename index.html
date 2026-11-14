@@ -137,12 +137,10 @@ body.tournament{--light:#eeeed2;--dark:#769656;--frame:linear-gradient(135deg,#4
 #pzStage .gboard{width:100%;max-width:none;margin:0}
 #pzStage.view3d #pzBoard{visibility:hidden;pointer-events:none;position:absolute;inset:0}
 #gf3d{position:absolute;inset:0;width:100%;height:100%;z-index:3;touch-action:none;display:block;border-radius:inherit}
-#btn3dReset,#btn3d{min-width:44px;height:44px;border-radius:22px;background:rgba(12,14,20,.88);color:#fff;border:2px solid rgba(255,255,255,.7);font-weight:700;padding:0 12px}
+#btn3d{min-width:44px;height:44px;border-radius:22px;background:rgba(12,14,20,.88);color:#fff;border:2px solid rgba(255,255,255,.7);font-weight:700;padding:0 12px}
 #btn3d.on{border-color:var(--acc);color:var(--acc)}
-#btn3dReset{position:absolute;right:8px;bottom:8px;z-index:8;width:44px;height:44px;padding:0;display:none}
-#board.view3d #btn3dReset,#pzStage.view3d #btn3dReset{display:block}
 @media (max-width:400px){#btn3d .l3{display:none}}
-@media (orientation:landscape) and (max-height:560px){#btn3d{flex-direction:column;height:auto;padding:8px 4px;font-size:11px;border-radius:14px}#btn3dReset{width:36px;height:36px;min-width:36px}}
+@media (orientation:landscape) and (max-height:560px){#btn3d{flex-direction:column;height:auto;padding:8px 4px;font-size:11px;border-radius:14px}}
 #promoPick{z-index:40}
 body.mode3d .frame #board{background:#0b0d12}
 
@@ -386,7 +384,7 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
 <div id="avaBar" class="hide" style="position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:90;background:var(--card);padding:8px 10px;border-radius:12px;display:flex;gap:8px;align-items:center;box-shadow:0 4px 16px #0008;flex-wrap:wrap;justify-content:center"><button id="avaPause">⏸ Pause</button><label class="small">Speed <select id="avaSpeed"><option value="1500">Slow</option><option value="600" selected>Normal</option><option value="150">Fast</option><option value="0">Max</option></select></label><button id="avaExit">✕ Exit</button><span id="avaRes" style="font-weight:700"></span></div>
 <section id="game" class="view hide">
  <div class="gbar"><span id="gStatus" aria-live="polite"></span><button id="hintBtn" aria-label="Hint" title="Hint: tap once for a nudge, again to show the move, again to hide"><span class="gi">💡</span><span class="hl2">Hint</span></button><button id="btn3d" aria-label="Toggle 2D or 3D board" title="Toggle 2D/3D board"><span class="gi">🎲</span><span class="l3">3D</span></button><button id="gear" aria-label="Open game menu" title="Game menu"><span class="gi">⚙</span><span class="gl2">Menu</span></button></div>
- <div class="frame"><div id="board"><button id="btn3dReset" type="button" title="Reset 3D view" aria-label="Reset 3D view">↺</button><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="hintL"></div><div id="fx"></div></div></div>
+ <div class="frame"><div id="board"><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="hintL"></div><div id="fx"></div></div></div>
  <div id="coachRow"><div id="coachBubble" aria-live="polite"></div></div>
  <div id="gBackdrop"></div>
  <aside class="side" id="side">
@@ -891,7 +889,7 @@ function moveText(s,m){if(m.k==='pass')return'— pass (frozen)';const p=s.bd[m.
 function doMove(m){const pre=S,col=pre.turn;hist.push({S,logs:[...logs],caps:{w:[...caps.w],b:[...caps.b]},last,aiInfo:{...aiInfo}});
  logs.push(moveText(pre,m));const dead=[];
  for(const x of m.x||[]){const q=pre.bd[x];if(q&&!(m.k==='ex'&&x===m.f&&false)){dead.push({i:x,t:q.t,c:q.c});caps[q.c===col?(col==='w'?'b':'w'):col].push(q.t)}}
- S=E.applyMove(pre,m);if(S.over){const st=S;setTimeout(()=>matchEnd(st),1200)}last=m.k==='pass'?null:m;sel=null;render({m,dead});onMoved(pre,m,S);
+ S=E.applyMove(pre,m);if(S.over){const st=S;setTimeout(()=>matchEnd(st),1200)}last=m.k==='pass'?null:m;sel=null;render({m,dead,pre});onMoved(pre,m,S);
  // effects + sound
  if(m.k==='ex'){fx('boom',m.f);$('board').classList.remove('shake');void $('board').offsetWidth;$('board').classList.add('shake');SND.boom()}
  else if(m.k==='sh'){const[r0,c0]=disp(m.f),[r1,c1]=disp(m.t),dx=c1-c0,dy=r1-r0;
@@ -1132,7 +1130,7 @@ function setWant3d(on,auto){want3d=!!on;try{if(!auto)localStorage.setItem('gf_vi
  if(v==='game'){if(on)bootView($('board')).then(()=>S&&render());else{pause3d();S&&render()}}
  else if(v==='pzplay'){if(on)bootView($('pzStage')).then(()=>PZ_&&drawPz());else{pause3d();PZ_&&drawPz()}}}
 function setFxLow(on){fxLow=!!on;try{localStorage.setItem('gf_fxlow',on?'1':'0')}catch(e){}syncOpts();if(window.GF3D&&GF3D.active())GF3D.setReduced(fxLow||!anim)}
-function sync3dBtns(){const b=$('btn3d');if(b){const on=want3d&&prefer3d();b.classList.toggle('on',!!on);const l=b.querySelector('.l3');if(l)l.textContent=on?'3D':'2D';b.title=on?'Switch to 2D board':'Switch to 3D board'}const r=$('btn3dReset');if(r)r.style.display=(window.GF3D&&GF3D.active())?'block':'none'}
+function sync3dBtns(){const b=$('btn3d');if(b){const on=want3d&&prefer3d();b.classList.toggle('on',!!on);const l=b.querySelector('.l3');if(l)l.textContent=on?'3D':'2D';b.title=on?'Switch to 2D board':'Switch to 3D board'}}
 window.GFUI_3D={get want3d(){return want3d},get fxLow(){return fxLow},get S(){return S},get sel(){return sel},setWant3d,setFxLow,prefer3d,bootView};
 
 function show(v){document.body.classList.remove('drawer');if(v==='howto'){const bk=$('howto').querySelector('.back');bk.dataset.go=curView==='game'?'game':'options';bk.textContent=curView==='game'?'← Back to game':'← Back'}
@@ -1459,7 +1457,7 @@ function precacheCoach(id){if(!AUD[id]||!voiceOn||muted)return;const ks=[];for(c
  let i=0;const next=()=>{if(i>=ks.length||coachId!==id)return;getClip(ks[i++]).catch(()=>{}).finally(()=>setTimeout(next,60))};next()}
 
 window.GFUI.show=show;window.GFUI.openPiece=openPiece;
-$('btn3d').onclick=()=>setWant3d(!want3d);$('btn3dReset').onclick=()=>{if(window.GF3D)GF3D.resetView()};setCoords(coords);show('home');
+$('btn3d').onclick=()=>setWant3d(!want3d);setCoords(coords);show('home');
 })();
 </script>
 <script>/*gf-sw*/if("serviceWorker" in navigator&&location.protocol!=="file:"){

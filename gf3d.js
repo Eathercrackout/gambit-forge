@@ -57,7 +57,7 @@ function geoLib(){
  g.plane=new T.PlaneGeometry(1,1);
  g.wing=new T.PlaneGeometry(.55,.4);
  g.part=sph(.045,6,5);
- g.cyl=cyl; g.sph=sph; g.box=box; g.cone=cone;
+ g.cyl=cyl; g.sph=sph; g.box=box; g.cone=cone; g.mkCone=cone;
  geos=g;return g;
 }
 
@@ -533,80 +533,462 @@ function shockwave(pos, color){
 }
 
 function isHop(m){
- if(!m||m.k==='v'||m.k==='sw')return true;
+ if(!m||m.k==='v'||m.k==='sw'||m.k==='os'||m.k==='tp')return m.k==='v'||m.k==='sw'||m.k==='os';
  if(m.k!=='m')return false;
  const dr=Math.abs((m.t>>3)-(m.f>>3)), dc=Math.abs((m.t&7)-(m.f&7));
  return dr&&dc&&dr!==dc;
 }
+function between(f,t){
+ const r0=f>>3,c0=f&7,r1=t>>3,c1=t&7,dr=Math.sign(r1-r0),dc=Math.sign(c1-c0);
+ const n=Math.max(Math.abs(r1-r0),Math.abs(c1-c0));const out=[];
+ if(!n||(dr&&dc&&Math.abs(r1-r0)!==Math.abs(c1-c0)))return out;
+ for(let i=1;i<n;i++)out.push((r0+dr*i)*8+(c0+dc*i));
+ return out;
+}
+function preType(anim,m){
+ const pre=anim&&anim.pre, bd=pre&&(pre.bd||pre);
+ if(bd&&m&&m.f>=0&&bd[m.f])return bd[m.f].t;
+ if(m&&m.k==='ex')return'X';
+ return null;
+}
+function preBd(anim){const p=anim&&anim.pre;return p&&(p.bd||p)}
 
-function animateMove(anim, bd){
- if(!anim||!anim.m){placePieces(bd);return}
- const m=anim.m;
- // build post-move pieces, then move the actor back to origin for tween
- placePieces(bd);
- if(m.k==='pass')return;
- const dur=reduced?0.12:0.32;
- const hop=isHop(m)&&!reduced;
- // dead pieces (captures) — re-add as fading ghosts
+/* Every piece has a unique signature trail; special powers have a second unique id. */
+const FXMAP={
+ K:{sig:'royalStep',special:'castleBanners',name:'King'},
+ Q:{sig:'queenFan',name:'Queen'},
+ R:{sig:'rookBattlement',name:'Rook'},
+ B:{sig:'bishopMitre',name:'Bishop'},
+ N:{sig:'knightHorseshoe',name:'Knight'},
+ P:{sig:'pawnMarch',special:'pawnAscend',name:'Pawn'},
+ V:{sig:'vaulterStep',special:'vaulterLeap',name:'Vaulter'},
+ W:{sig:'keeperKey',special:'keeperSwirl',name:'Keeper'},
+ F:{sig:'frostSpread',name:'Frostcaller'},
+ A:{sig:'longbowDraw',special:'longbowArrow',name:'Longbow'},
+ S:{sig:'squireSalute',special:'squireKnighting',name:'Squire'},
+ L:{sig:'paladinCross',name:'Paladin'},
+ H:{sig:'bulwarkStomp',name:'Bulwark'},
+ G:{sig:'wraithPhase',name:'Wraith'},
+ X:{sig:'bombardFuse',special:'bombardBlast',name:'Bombard'},
+ C:{sig:'lancerThrust',name:'Lancer'},
+ Y:{sig:'berolinaBias',name:'Berolina'},
+ J:{sig:'sergeantChevron',name:'Sergeant'},
+ U:{sig:'shieldWall',name:'Shieldbearer'},
+ Z:{sig:'scoutDash',name:'Scout'},
+ I:{sig:'runnerStreak',name:'Runner'},
+ c:{sig:'camelLunge',name:'Camel'},
+ z:{sig:'zebraStripe',name:'Zebra'},
+ n:{sig:'nightriderChain',name:'Nightrider'},
+ d:{sig:'cardinalRobe',name:'Cardinal'},
+ e:{sig:'elephantTusk',name:'Elephant'},
+ p:{sig:'priestHalo',name:'Priest'},
+ t:{sig:'towerShadow',name:'Tower'},
+ r:{sig:'ramTrot',special:'ramCharge',name:'Ram'},
+ w:{sig:'wardenDome',name:'Warden'},
+ E:{sig:'empressRegalia',name:'Empress'},
+ O:{sig:'princessBloom',name:'Princess'},
+ m:{sig:'amazonSpear',name:'Amazon'},
+ k:{sig:'warlordHelm',name:'Warlord'},
+ o:{sig:'monarchCrown',name:'Monarch'},
+ h:{sig:'phantomDrift',special:'phantomWarp',name:'Phantom King'},
+ D:{sig:'dragonStep',special:'dragonBreath',name:'Dragon'},
+ y:{sig:'wyvernGust',name:'Wyvern'},
+ q:{sig:'oracleGlow',special:'oracleVision',name:'Oracle'},
+ s:{sig:'seerWisp',special:'seerGlimpse',name:'Seer'}
+};
+let lastFx=null;
+function pickFx(type,m,anim){
+ const spec=FXMAP[type];if(!spec)return'sigTrail';
+ if(!m)return spec.sig;
+ if(type==='K'&&m.k==='cs')return spec.special;
+ if(type==='P'&&m.pr)return spec.special;
+ if(type==='V'&&m.k==='v')return spec.special;
+ if(type==='W'&&m.k==='sw')return spec.special;
+ if(type==='A'&&m.k==='sh')return spec.special;
+ if(type==='S'&&m.x)return spec.special;
+ if(type==='X'&&m.k==='ex')return spec.special;
+ if(type==='r'&&m.k==='pu')return spec.special;
+ if(type==='h'&&m.k==='tp')return spec.special;
+ if(type==='q'&&m.k==='os')return spec.special;
+ if(type==='s'&&m.k==='os')return spec.special;
+ if(type==='D'){
+  const pre=preBd(anim);const mid=between(m.f,m.t);
+  const jumped=pre&&mid.some(i=>pre[i]);const diag=(()=>{const dr=Math.abs((m.t>>3)-(m.f>>3)),dc=Math.abs((m.t&7)-(m.f&7));return dr&&dr===dc})();
+  if(diag||jumped||m.x)return spec.special;
+ }
+ return spec.sig;
+}
+
+function nPart(n){return reduced?Math.min(4,n):n}
+function tempMesh(geo,color,pos,life,opts){
+ opts=opts||{};
+ const mat=new T.MeshBasicMaterial({color,transparent:true,opacity:opts.op==null?1:opts.op,depthWrite:false,side:opts.side||T.FrontSide});
+ const m=new T.Mesh(geo,mat);if(pos)m.position.copy(pos);fxG.add(m);
+ const dur=life==null?.55:life;
+ tweens.push({obj:mat,prop:'opacity',from:mat.opacity,to:0,dur,t:0,ondone:()=>{fxG.remove(m);if(opts.disposeGeo&&m.geometry)m.geometry.dispose()}});
+ if(opts.scaleTo)tweens.push({obj:m,prop:'scale',from:m.scale.clone(),to:opts.scaleTo,dur,t:0});
+ return m;
+}
+function dotsAlong(a,b,color,n,y,spread){
+ n=nPart(n);const out=[];
+ for(let i=0;i<n;i++){
+  const u=n===1?0.5:i/(n-1);
+  const p=a.clone().lerp(b,u);p.y=(y==null?.28:y)+(spread?Math.sin(u*Math.PI)*spread:0);
+  const m=tempMesh(geoLib().part,color,p, reduced?.28:.5);
+  out.push(m);
+ }
+ return out;
+}
+function fxRingAt(pos,color,fromR,toR,life){
+ if(reduced&&toR>2)toR=Math.min(toR,2.4);
+ const g=new T.RingGeometry(fromR,fromR*1.25, reduced?12:22);
+ const m=new T.Mesh(g,new T.MeshBasicMaterial({color,transparent:true,opacity:.9,side:T.DoubleSide,depthWrite:false}));
+ m.rotation.x=-Math.PI/2;m.position.copy(pos);m.position.y=.1;fxG.add(m);
+ const s=toR/fromR;
+ tweens.push({obj:m,prop:'scale',from:new T.Vector3(1,1,1),to:new T.Vector3(s,s,s),dur:life||.5,t:0,ondone:()=>{fxG.remove(m);g.dispose()}});
+ tweens.push({obj:m.material,prop:'opacity',from:.9,to:0,dur:life||.5,t:0});
+ return m;
+}
+function fxBeam(a,b,color,r,life){
+ const dir=b.clone().sub(a);const len=dir.length()||.01;
+ const g=new T.CylinderGeometry(r,r*.4,len, reduced?6:10);
+ const m=new T.Mesh(g,new T.MeshBasicMaterial({color,transparent:true,opacity:.95,depthWrite:false}));
+ m.position.copy(a.clone().add(b).multiplyScalar(.5));
+ m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir.clone().normalize());
+ fxG.add(m);
+ tweens.push({obj:m.material,prop:'opacity',from:.95,to:0,dur:life||.4,t:0,ondone:()=>{fxG.remove(m);g.dispose()}});
+ return m;
+}
+function fxFly(a,b,color,r,life,onend){
+ const g=new T.SphereGeometry(r,8,6);
+ const m=new T.Mesh(g,new T.MeshBasicMaterial({color,transparent:true,opacity:1}));
+ m.position.copy(a);fxG.add(m);
+ tweens.push({obj:m,prop:'pos',from:a.clone(),to:b.clone(),dur:life||.32,t:0,ondone:()=>{fxG.remove(m);g.dispose();if(onend)onend()}});
+ return m;
+}
+
+function playFx(id,ctx){
+ lastFx=id;const m=ctx.m,A=worldOf(m.f>=0?m.f:m.t||0),B=worldOf(m.t>=0?m.t:m.f||0);
+ A.y=0;B.y=0;const mid=A.clone().lerp(B,.5);mid.y=0;
+ const lift=(p,y)=>{const q=p.clone();q.y=y;return q};
+ switch(id){
+  case'royalStep':
+   burst(lift(B,.35),0xffd400,nPart(10),1.6,.4);fxRingAt(B,0xffe082,.12,.55,.4);
+   break;
+  case'castleBanners':
+   dotsAlong(lift(A,.2),lift(B,.2),0xffd400,10,.25,.15);
+   if(m.rf!=null)dotsAlong(lift(worldOf(m.rf),.2),lift(worldOf(m.rt),.2),0xc9a227,8,.25,.1);
+   burst(lift(B,.5),0xfff0a0,nPart(16),2.2,.55);fxRingAt(B,0xffd400,.2,1.2,.55);
+   break;
+  case'queenFan':{
+   dotsAlong(lift(A,.3),lift(B,.3),0xffe082,14,.3,.08);
+   if(!reduced)for(let i=0;i<8;i++){const ang=i*Math.PI/4,p=lift(B,.35);p.x+=Math.cos(ang)*.28;p.z+=Math.sin(ang)*.28;tempMesh(geoLib().coneS,0xffd400,p,.45).rotation.x=Math.PI}
+   break;}
+  case'rookBattlement':
+   dotsAlong(lift(A,.15),lift(B,.15),0xb0a090,12,.12,0);
+   if(!reduced){const g=new T.BoxGeometry(.22,.18,.22);for(let u of[.3,.6,.9]){const p=A.clone().lerp(B,u);p.y=.2;tempMesh(g,0x8d7a68,p,.4)}}
+   break;
+  case'bishopMitre':
+   dotsAlong(lift(A,.35),lift(B,.45),0xc5b8ff,12,.4,.2);
+   if(!reduced)tempMesh(geoLib().cone(.08,.22,8),0xd4c4ff,lift(B,.55),.5);
+   break;
+  case'knightHorseshoe':
+   fxRingAt(B,0xd4a574,.16,.7,.4);
+   burst(lift(B,.25),0xc9a227,nPart(12),2.4,.45);
+   break;
+  case'pawnMarch':
+   burst(lift(A,.08),0xc2b280,nPart(6),1.1,.35);
+   if(m.x)burst(lift(B,.2),0xc2b280,nPart(8),1.6,.4);
+   break;
+  case'pawnAscend':
+   burst(lift(B,.5),0xffd400,nPart(22),3,.7);fxRingAt(B,0xfff6c0,.15,1.4,.6);
+   {const pillar=tempMesh(new T.CylinderGeometry(.08,.16,1.4,8),0xfff0a0,lift(B,.7),.7,{op:.8,disposeGeo:true});pillar.scale.y=.2;tweens.push({obj:pillar,prop:'scale',from:new T.Vector3(1,.2,1),to:new T.Vector3(1,1,1),dur:.45,t:0})}
+   break;
+  case'vaulterStep':
+   burst(lift(B,.15),0x2a9d8f,nPart(6),1.2,.3);fxRingAt(B,0x2a9d8f,.1,.4,.3);
+   break;
+  case'vaulterLeap':
+   fxRingAt(A,0x2a9d8f,.2,.6,.35);fxRingAt(B,0x5ee0c8,.18,1.1,.55);
+   burst(lift(B,.3),0x2a9d8f,nPart(14),2.5,.5);
+   dotsAlong(lift(A,.1),lift(B,.1),0x7dffe0,8,.8,.9);
+   break;
+  case'keeperKey':
+   burst(lift(B,.3),0x9b59b6,nPart(8),1.4,.35);tempMesh(geoLib().tor,0xce93d8,lift(B,.55),.45);
+   break;
+  case'keeperSwirl':{
+   const c=0xab47bc;
+   if(!reduced)for(let i=0;i<10;i++){const u=i/10,p=new T.Vector3(),ang=u*Math.PI*2,r=.55;
+    p.set((A.x+B.x)/2+Math.cos(ang)*r,.25+u*.2,(A.z+B.z)/2+Math.sin(ang)*r);tempMesh(geoLib().part,c,p,.5)}
+   fxRingAt(A,c,.15,.8,.5);fxRingAt(B,c,.15,.8,.5);
+   break;}
+  case'frostSpread':{
+   const origin=m.t>=0?m.t:m.f, r=origin>>3,c=origin&7;
+   burst(lift(worldOf(origin),.35),0x8ad8ff,nPart(12),1.8,.5);
+   for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc)continue;const rr=r+dr,cc=c+dc;if(rr<0||rr>7||cc<0||cc>7)continue;
+    const i=rr*8+cc,p=lift(worldOf(i),.15);
+    if(!reduced)for(let k=0;k<3;k++){const cr=tempMesh(geoLib().cone(.08,.22,8),0xb3ecff,p.clone(),.7,{op:.9});cr.position.y=.12+k*.1;cr.position.x+= (k-1)*.06;cr.position.z+=(k-1)*.05;cr.scale.set(.45+k*.15,.5+k*.2,.45)}
+    const q=ctx.bd&&ctx.bd[i];
+    if(q||(ctx.pre&&ctx.pre[i]&&ctx.pre[i].c!==ctx.side)){
+     fxRingAt(worldOf(i),0x8ad8ff,.12,.6,.6);
+     const meshP=pins[i];
+     if(meshP)meshP.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissive){o.material.emissive.setHex(0x3fa7ff);o.material.emissiveIntensity=.55}});
+     if(meshP&&!reduced){const shell=tempMesh(new T.IcosahedronGeometry(.38,0),0xa8e4ff,meshP.position.clone(),.9,{op:.45,disposeGeo:true,side:T.DoubleSide});shell.position.y=.28;shell.scale.set(1.1,1.4,1.1)}
+    }
+   }
+   break;}
+  case'longbowDraw':
+   fxRingAt(A,0x27ae60,.1,.45,.3);burst(lift(A,.3),0x66bb6a,nPart(5),1,.3);
+   break;
+  case'longbowArrow':{
+   const a=lift(A,.42),b=lift(B,.42);
+   const shaft=fxBeam(a,b,0x7cff6b,.035,.15);
+   fxFly(a,b,0xb6ff8a,.07,reduced?.12:.3,()=>{burst(b,0x7cff6b,nPart(16),3,.5);fxRingAt(B,0x7cff6b,.15,.9,.45)});
+   break;}
+  case'squireSalute':
+   dotsAlong(lift(A,.2),lift(B,.2),0xe67e22,7,.22,.05);
+   break;
+  case'squireKnighting':
+   burst(lift(B,.45),0xf39c12,nPart(20),3,.65);fxRingAt(B,0xffd400,.2,1.2,.6);
+   if(!reduced){tempMesh(geoLib().cone(.08,.22,8),0xffd400,lift(B,.7),.55);const x=tempMesh(new T.BoxGeometry(.06,.28,.06),0xffd400,lift(B,.62),.55,{disposeGeo:true});tempMesh(new T.BoxGeometry(.18,.06,.06),0xffd400,lift(B,.62),.55,{disposeGeo:true})}
+   break;
+  case'paladinCross':
+   dotsAlong(lift(A,.3),lift(B,.3),0xf5d76e,10,.3,.1);
+   {const p=lift(B,.55);tempMesh(new T.BoxGeometry(.07,.32,.07),0xfff3c0,p,.5,{disposeGeo:true});tempMesh(new T.BoxGeometry(.22,.07,.07),0xfff3c0,p,.5,{disposeGeo:true});fxRingAt(B,0xffe082,.14,.7,.45)}
+   break;
+  case'bulwarkStomp':
+   if(!reduced)shake=.18;fxRingAt(B,0x90a4ae,.2,1.0,.45);burst(lift(B,.08),0x78909c,nPart(10),1.8,.4);
+   break;
+  case'wraithPhase':{
+   dotsAlong(lift(A,.35),lift(B,.35),0xb39ddb,12,.4,.15);
+   const pre=ctx.pre;between(m.f,m.t).forEach(i=>{const p=lift(worldOf(i),.4);tempMesh(geoLib().ball,0x8e7cc3,p,.55,{op:.45});if(pre&&pre[i])tempMesh(new T.IcosahedronGeometry(.42,0),0xce93d8,lift(worldOf(i),.3),.5,{op:.3,disposeGeo:true,side:T.DoubleSide})});
+   if(ctx.actor){ctx.actor.traverse(o=>{if(o.material){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=.45}});tweens.push({obj:{n:0},prop:'n',from:0,to:1,dur:.45,t:0,ondone:()=>{ctx.actor.traverse(o=>{if(o.material)o.material.opacity=1})}})}
+   break;}
+  case'bombardFuse':
+   dotsAlong(lift(A,.2),lift(B,.2),0xff7043,6,.2,0);burst(lift(B,.2),0xffa726,nPart(5),1,.3);
+   break;
+  case'bombardBlast':{
+   const p=lift(A,.35);
+   if(!reduced){const ball=tempMesh(geoLib().ballL,0x333,p,.25,{op:1});tweens.push({obj:ball.position,prop:null,from:0,to:1,dur:.18,t:0,custom:(o,k)=>{ball.position.y=.35+k*.7},ondone:()=>{fxG.remove(ball)}})}
+   setTimeout(()=>{shockwave(A,0xff5522);burst(p,0xff7a2a,nPart(28),5,.7);burst(p,0xffe082,nPart(12),3,.5);if(!reduced)shake=.55;(m.x||[]).forEach(i=>fxRingAt(worldOf(i),0xff6e40,.12,.7,.45))}, reduced?40:180);
+   break;}
+  case'lancerThrust':
+   fxBeam(lift(A,.35),lift(B,.35),0xc9a227,.045,.4);burst(lift(B,.3),0xffe082,nPart(10),2.2,.4);
+   break;
+  case'berolinaBias':
+   dotsAlong(lift(A,.22),lift(B,.22),0xa1887f,8,.22,.12);
+   if(!reduced){const d=tempMesh(new T.BoxGeometry(.12,.12,.12),0xd7ccc8,lift(B,.35),.4,{disposeGeo:true});d.rotation.set(Math.PI/4,Math.PI/4,0)}
+   break;
+  case'sergeantChevron':
+   dotsAlong(lift(A,.14),lift(B,.14),0x8d6e63,8,.14,0);
+   if(!reduced)for(const u of[.4,.75]){const p=A.clone().lerp(B,u);p.y=.2;const a=tempMesh(new T.ConeGeometry(.1,.12,3),0xbcaaa4,p,.4,{disposeGeo:true});a.rotation.x=Math.PI/2}
+   break;
+  case'shieldWall':{
+   const behind=ctx.side==='w'?m.t+8:m.t-8;
+   const sh=tempMesh(new T.CylinderGeometry(.28,.28,.06,14),0x90a4ae,lift(B,.28),.55,{disposeGeo:true,op:.85});
+   sh.rotation.x=Math.PI/2;
+   if(behind>=0&&behind<64){fxBeam(lift(B,.3),lift(worldOf(behind),.3),0xb0bec5,.04,.45);fxRingAt(worldOf(behind),0x90a4ae,.15,.55,.4)}
+   break;}
+  case'scoutDash':
+   dotsAlong(lift(A,.08),lift(B,.08),0x9ccc65,10,.08,0);
+   if(!reduced)fxBeam(lift(A,.1),lift(B,.1),0x7cb342,.02,.28);
+   break;
+  case'runnerStreak':
+   fxBeam(lift(A,.22),lift(B,.22),0x26a69a,.06,.4);dotsAlong(lift(A,.22),lift(B,.22),0x80cbc4,10,.22,.05);
+   break;
+  case'camelLunge':
+   dotsAlong(lift(A,.1),lift(B,.1),0xe0c090,6,.08,.25);
+   burst(lift(A,.06),0xd7ccc8,nPart(8),1.4,.4);burst(lift(B,.06),0xd7ccc8,nPart(8),1.6,.4);
+   break;
+  case'zebraStripe':
+   if(!reduced){const cols=[0x111,0xeee];for(let i=0;i<8;i++){const p=A.clone().lerp(B,i/7);p.y=.3;tempMesh(new T.BoxGeometry(.16,.06,.08),cols[i%2],p,.45,{disposeGeo:true})}}
+   else dotsAlong(lift(A,.25),lift(B,.25),0x455a64,6,.25,.2);
+   break;
+  case'nightriderChain':{
+   const dr=Math.sign((m.t>>3)-(m.f>>3))*2, dc=Math.sign((m.t&7)-(m.f&7))*1;
+   // knight steps: actually (2,1) multiples; walk by closest knight step
+   const path=[];let cur=m.f;path.push(cur);
+   const kn=[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
+   for(let guard=0;guard<8&&cur!==m.t;guard++){
+    let best=-1,bd=99;for(const[a,b]of kn){const r=(cur>>3)+a,c=(cur&7)+b;if(r<0||r>7||c<0||c>7)continue;const j=r*8+c,d=Math.abs((m.t>>3)-r)+Math.abs((m.t&7)-c);if(d<bd){bd=d;best=j}}
+    if(best<0)break;path.push(best);cur=best}
+   for(let i=0;i<path.length-1;i++){const p=worldOf(path[i]),q=worldOf(path[i+1]);dotsAlong(lift(p,.25),lift(q,.25),0x5c6bc0,4,.3,.35);fxRingAt(q,0x7986cb,.1,.4,.35)}
+   break;}
+  case'cardinalRobe':
+   dotsAlong(lift(A,.3),lift(B,.3),0xc62828,8,.3,.08);
+   burst(lift(B,.3),0xe57373,nPart(8),1.5,.4);
+   break;
+  case'elephantTusk':
+   if(!reduced)shake=.22;fxRingAt(B,0x8d8d8d,.22,1.1,.5);burst(lift(B,.08),0xa0a0a0,nPart(14),2.2,.5);
+   break;
+  case'priestHalo':{
+   const h=tempMesh(geoLib().tor,0xce93d8,lift(B,.7),.65,{op:.95});h.rotation.x=Math.PI/2;h.scale.set(1.3,1.3,1.3);
+   tweens.push({obj:h.position,prop:null,from:0,to:1,dur:.55,t:0,custom:(o,k)=>{h.position.y=.55+k*.35}});
+   burst(lift(B,.4),0xce93d8,nPart(8),1.2,.4);
+   break;}
+  case'towerShadow':{
+   const sh=tempMesh(new T.BoxGeometry(.4,1.1,.4),0x5d4037,lift(B,.55),.5,{op:.35,disposeGeo:true});
+   sh.scale.y=.2;tweens.push({obj:sh,prop:'scale',from:new T.Vector3(1,.2,1),to:new T.Vector3(1,1,1),dur:.4,t:0});
+   dotsAlong(lift(A,.15),lift(B,.15),0x6d4c41,8,.15,0);
+   break;}
+  case'ramTrot':
+   burst(lift(A,.06),0x8d6e63,nPart(5),1,.3);burst(lift(B,.06),0x8d6e63,nPart(5),1.2,.3);
+   break;
+  case'ramCharge':{
+   fxBeam(lift(A,.25),lift(B,.25),0x6d4c41,.07,.35);
+   burst(lift(A,.08),0xd7ccc8,nPart(10),2,.45);burst(lift(B,.15),0xd7ccc8,nPart(14),2.6,.5);
+   if(!reduced)shake=.25;
+   if(m.pt!=null){const tgt=pins[m.pt]||pins[m.t];const C=worldOf(m.pt);
+    fxRingAt(B,0x8d6e63,.2,.8,.4);
+    /* target already placed at pt in post board; tween from t to pt */
+    const pushed=pins[m.pt];if(pushed){const from=sqPos(m.t),to=sqPos(m.pt);pushed.position.set(from.x,0,from.z);tweens.push({obj:pushed,prop:'pos',from:new T.Vector3(from.x,0,from.z),to:new T.Vector3(to.x,0,to.z),dur:.28,t:0})}
+   }
+   break;}
+  case'wardenDome':{
+   const dome=tempMesh(new T.SphereGeometry(.7,12,8,0,Math.PI*2,0,Math.PI/2),0x9b59b6,lift(B,0),.7,{op:.4,disposeGeo:true,side:T.DoubleSide});
+   dome.scale.set(.2,.2,.2);tweens.push({obj:dome,prop:'scale',from:new T.Vector3(.2,.2,.2),to:new T.Vector3(1,1,1),dur:.45,t:0});
+   fxRingAt(B,0xab47bc,.2,1.0,.5);
+   break;}
+  case'empressRegalia':
+   dotsAlong(lift(A,.32),lift(B,.32),0xce93d8,12,.32,.1);
+   burst(lift(B,.45),0xea80fc,nPart(14),2.4,.5);
+   if(!reduced)for(let i=0;i<6;i++){const a=i*Math.PI/3,p=lift(B,.5);p.x+=Math.cos(a)*.22;p.z+=Math.sin(a)*.22;tempMesh(geoLib().ballS,0xe040fb,p,.45)}
+   break;
+  case'princessBloom':
+   dotsAlong(lift(A,.3),lift(B,.3),0xf48fb1,12,.3,.18);
+   if(!reduced)for(let i=0;i<8;i++){const a=i*Math.PI/4,p=lift(B,.35);const dest=p.clone();dest.x+=Math.cos(a)*.4;dest.z+=Math.sin(a)*.4;const petal=tempMesh(new T.SphereGeometry(.07,6,5),0xf8bbd0,p,.55,{disposeGeo:true});tweens.push({obj:petal,prop:'pos',from:p,to:dest,dur:.5,t:0})}
+   else burst(lift(B,.3),0xf48fb1,nPart(8),1.6,.4);
+   break;
+  case'amazonSpear':
+   fxBeam(lift(A,.4),lift(B,.55),0x2e7d32,.04,.45);dotsAlong(lift(A,.28),lift(B,.28),0x81c784,10,.28,.08);burst(lift(B,.4),0xa5d6a7,nPart(10),2,.4);
+   break;
+  case'warlordHelm':
+   burst(lift(B,.4),0xe53935,nPart(14),2.6,.5);
+   if(!reduced)for(let i=0;i<6;i++){const a=i*Math.PI/3,s=tempMesh(geoLib().coneS,0xb71c1c,lift(B,.5),.45);s.position.x+=Math.cos(a)*.16;s.position.z+=Math.sin(a)*.16}
+   fxRingAt(B,0xc62828,.15,.7,.4);
+   break;
+  case'monarchCrown':
+   burst(lift(B,.55),0xffd54f,nPart(18),2.2,.55);
+   if(!reduced)for(let i=0;i<8;i++){const a=i*Math.PI/4,s=tempMesh(geoLib().cone(.08,.22,8),0xffb300,lift(B,.55),.5);s.position.x+=Math.cos(a)*.2;s.position.z+=Math.sin(a)*.2;s.scale.set(.7,1.1,.7)}
+   fxRingAt(B,0xffe082,.2,1.15,.55);
+   break;
+  case'phantomDrift':
+   dotsAlong(lift(A,.3),lift(B,.3),0xb39ddb,6,.35,.08);
+   if(ctx.actor){ctx.actor.traverse(o=>{if(o.material){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=.5}})}
+   break;
+  case'phantomWarp':{
+   fxRingAt(A,0x7e57c2,.2,1.1,.5);fxRingAt(B,0x7e57c2,.2,1.1,.5);
+   burst(lift(A,.4),0x7e57c2,nPart(14),2.4,.5);burst(lift(B,.4),0xb39ddb,nPart(14),2.4,.5);
+   if(ctx.actor){ctx.actor.visible=false;setTimeout(()=>{if(ctx.actor)ctx.actor.visible=true}, reduced?80:280)}
+   if(!reduced){const rift=tempMesh(new T.TorusGeometry(.35,.04,8,16),0xce93d8,lift(A,.5),.5,{disposeGeo:true});rift.rotation.x=Math.PI/2}
+   break;}
+  case'dragonStep':
+   burst(lift(B,.1),0xff8a65,nPart(8),1.4,.4);
+   break;
+  case'dragonBreath':{
+   const n=nPart(22);
+   for(let i=0;i<n;i++){
+    const u=i/(n-1||1),p=A.clone().lerp(B,u);p.y=.25+Math.random()*.2;
+    const col=i%2?0xff6d00:0xffe082;
+    const pr=tempMesh(geoLib().part,col,p, .35+u*.3);
+    const to=p.clone();to.x+=(Math.random()-.5)*.3;to.y+=.5+Math.random()*.4;to.z+=(Math.random()-.5)*.3;
+    tweens.push({obj:pr,prop:'pos',from:p,to,dur:.45,t:0});
+   }
+   fxBeam(lift(A,.35),lift(B,.35),0xff3d00,.08,.35);
+   burst(lift(B,.3),0xff6d00,nPart(12),2.5,.5);
+   break;}
+  case'wyvernGust':{
+   const n=nPart(16);
+   for(let i=0;i<n;i++){
+    const u=i/(n-1||1),p=A.clone().lerp(B,u);p.y=.2;
+    const side=(i%2?1:-1)*.28,ang=u*Math.PI;
+    p.x+=Math.cos(ang)*side;p.z+=Math.sin(ang)*side;
+    const w=tempMesh(new T.PlaneGeometry(.28,.16),0x4db6ac,p,.5,{side:T.DoubleSide,disposeGeo:true,op:.8});
+    w.lookAt(B);const to=p.clone();to.y+=.35;tweens.push({obj:w,prop:'pos',from:p,to,dur:.5,t:0});
+   }
+   fxRingAt(B,0x00897b,.18,.9,.45);
+   break;}
+  case'oracleGlow':
+   tempMesh(geoLib().ballL,0x29b6f6,lift(A,.5),.45,{op:.7});fxRingAt(A,0x29b6f6,.12,.5,.35);
+   break;
+  case'oracleVision':{
+   fxRingAt(A,0x29b6f6,.2,2.2,.7);fxRingAt(B,0x4fc3f7,.2,1.4,.6);
+   if(!reduced){fxRingAt(A,0xb3e5fc,.3,3.2,.85);tempMesh(geoLib().ballL,0x29b6f6,lift(A,.6),.6,{op:.6})}
+   burst(lift(A,.4),0x29b6f6,nPart(12),2,.5);burst(lift(B,.4),0x4fc3f7,nPart(12),2,.5);
+   break;}
+  case'seerWisp':
+   burst(lift(B,.3),0x81d4fa,nPart(6),1.1,.35);tempMesh(geoLib().ballS,0x4fc3f7,lift(B,.45),.4,{op:.7});
+   break;
+  case'seerGlimpse':
+   fxRingAt(A,0x4fc3f7,.15,1.1,.5);fxRingAt(B,0x81d4fa,.12,.9,.5);
+   if(!reduced)fxRingAt(A,0xe1f5fe,.25,1.6,.65);
+   burst(lift(A,.35),0x4fc3f7,nPart(8),1.6,.4);burst(lift(B,.35),0x81d4fa,nPart(8),1.6,.4);
+   break;
+  default:
+   dotsAlong(lift(A,.2),lift(B,.2),0xcccccc,6,.2,0);
+ }
+}
+
+function fadeCaptures(anim,m){
  (anim.dead||[]).forEach(d=>{
   if(m.k==='sh'||m.k==='ex'||(m.x&&m.x.includes(d.i))){
    const acc=(G.GF&&G.GF.P&&G.GF.P[d.t]&&G.GF.P[d.t].col)||null;
    const g=pieceMesh(d.t,d.c,acc);const p=sqPos(d.i);g.position.set(p.x,0,p.z);if(d.c==='b')g.rotation.y=Math.PI;
    pieceG.add(g);
    if(reduced){g.visible=false;return}
-   burst(new T.Vector3(p.x,.3,p.z), d.c==='w'?0xf1e6cf:0x445, 16, 3.2, .55);
-   tweens.push({obj:g.scale,prop:null,from:1,to:.2,dur:.4,t:0,custom:(o,k)=>g.scale.setScalar(k)});
-   tweens.push({obj:g,prop:'visible',from:1,to:0,dur:.4,t:0,ondone:()=>pieceG.remove(g),custom:(o,k)=>{g.traverse(c=>{if(c.material){c.material=c.material.clone();c.material.transparent=true;c.material.opacity=1-k}})}});
+   burst(new T.Vector3(p.x,.3,p.z), d.c==='w'?0xf1e6cf:0x445, 10, 2.6, .5);
+   tweens.push({obj:g.scale,prop:null,from:1,to:.2,dur:.4,t:0,custom:(o,k)=>g.scale.setScalar(Math.max(.2,1-k))});
+   tweens.push({obj:g,prop:'visible',from:1,to:0,dur:.4,t:0,ondone:()=>pieceG.remove(g),custom:(o,k)=>{g.traverse(c=>{if(c.material){if(!c.userData._tr){c.material=c.material.clone();c.material.transparent=true;c.userData._tr=1}c.material.opacity=1-k}})}});
   }
  });
+}
+
+function animateMove(anim, bd){
+ if(!anim||!anim.m){placePieces(bd);return}
+ const m=anim.m;
+ placePieces(bd);
+ if(m.k==='pass'){lastFx='pass';return}
+ const dur=reduced?0.12:0.32;
+ const hop=isHop(m)&&!reduced;
+ fadeCaptures(anim,m);
  const moveOne=(from,to,mesh,arc)=>{
-  if(!mesh)return;
+  if(!mesh||from===to)return;
   const a=sqPos(from), b=sqPos(to);
   mesh.position.set(a.x,0,a.z);
-  tweens.push({obj:mesh,prop:'pos',from:new T.Vector3(a.x,0,a.z),to:new T.Vector3(b.x,0,b.z),dur,t:0,arc:arc?1.15:0,ondone:()=>{mesh.position.set(b.x,0,b.z);dirty=true}});
+  tweens.push({obj:mesh,prop:'pos',from:new T.Vector3(a.x,0,a.z),to:new T.Vector3(b.x,0,b.z),dur,t:0,arc:arc?(m.k==='v'?1.55:1.15):0,ondone:()=>{mesh.position.set(b.x,0,b.z);dirty=true}});
  };
- if(m.k==='sh'){
-  // piece stays; bolt flies
-  const a=worldOf(m.f), b=worldOf(m.t);a.y=.45;b.y=.45;
-  const bolt=mesh(new T.CylinderGeometry(.03,.03,.02,6), new T.MeshBasicMaterial({color:0x7cff6b}));
-  bolt.position.copy(a);fxG.add(bolt);
-  const mid=b.clone().sub(a);bolt.scale.y=Math.max(.2, mid.length());bolt.quaternion.setFromUnitVectors(new T.Vector3(0,1,0), mid.clone().normalize());
-  tweens.push({obj:bolt,prop:'pos',from:a,to:b,dur:reduced?.1:.28,t:0,ondone:()=>{fxG.remove(bolt);burst(b,0x7cff6b,18,3,.5)}});
-  return;
- }
- if(m.k==='ex'){
-  const p=worldOf(m.f);p.y=.2;shockwave(p,0xff5522);burst(p,0xff7a2a,28,5,.7);shake=reduced?0:.55;
-  return;
- }
- if(m.k==='sw'){
-  const A=pins[m.t], B=pins[m.f];
-  // after swap, A is at t (came from f), B at f (came from t)
+ const typ=preType(anim,m)||(pins[m.t]&&pins[m.t].userData.type)||(pins[m.f]&&pins[m.f].userData.type);
+ // motion
+ if(m.k==='sh'){/* shooter stays */}
+ else if(m.k==='ex'){/* self may vanish */}
+ else if(m.k==='sw'||m.k==='os'){
+  const A=pins[m.t],B=pins[m.f];
   if(A)moveOne(m.f,m.t,A,true);if(B)moveOne(m.t,m.f,B,true);
-  burst(worldOf(m.f).setY(.3),0xc9a227,8,2,.4);burst(worldOf(m.t).setY(.3),0xc9a227,8,2,.4);
-  return;
  }
- if(m.k==='cs'){
+ else if(m.k==='cs'){
   const k=pins[m.t], r=m.rt!=null?pins[m.rt]:null;
   if(k)moveOne(m.f,m.t,k,false);if(r)moveOne(m.rf,m.rt,r,false);
-  return;
  }
- // standard move / vault
- const actor=pins[m.t];
- if(actor)moveOne(m.f,m.t,actor,hop||m.k==='v');
- if(m.pr){ // promotion flash
-  const p=worldOf(m.t);p.y=.5;burst(p,0xffd400,20,3,.6);shockwave(p,0xffd400);
-  if(actor){actor.scale.setScalar(1.35);tweens.push({obj:actor.scale,prop:null,from:1.35,to:1,dur:.4,t:0,custom:(o,k)=>actor.scale.setScalar(1.35-k*.35)})}
+ else if(m.k==='tp'){
+  const actor=pins[m.t];if(actor){actor.position.set(sqPos(m.t).x,0,sqPos(m.t).z)}
  }
- // frostcaller
- const preType=actor&&actor.userData.type;
- if(preType==='F'||(anim.pre&&anim.pre.t==='F')){
-  const r=m.t>>3,c=m.t&7;
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-   if(!dr&&!dc)continue;const rr=r+dr,cc=c+dc;if(rr<0||rr>7||cc<0||cc>7)continue;
-   const i=rr*8+cc,q=bd[i];if(q&&q.c!==(anim.side)){const p=worldOf(i);p.y=.3;burst(p,0x8ad8ff,10,1.6,.6)}
-  }
+ else if(m.k==='pu'){
+  const actor=pins[m.t];if(actor)moveOne(m.f,m.t,actor,false);
+ }
+ else {
+  const actor=pins[m.t];
+  if(actor)moveOne(m.f,m.t,actor,hop||m.k==='v');
+ }
+ const actor=pins[m.t]||pins[m.f];
+ const id=pickFx(typ,m,anim);
+ lastFx=id;
+ playFx(id,{m,bd,pre:preBd(anim),side:anim.side,actor,anim});
+ if(m.pr&&id!=='pawnAscend'){
+  // already handled for pawns; other second-rank promotions still get a small flash unique? keep modest so it doesn't collide
+  burst(worldOf(m.t).setY(.4),0xffd400,nPart(8),2,.4);
  }
 }
+
 
 function kingFall(state){
  if(reduced||!state||!state.over||state.over==='draw')return;
@@ -677,15 +1059,12 @@ function distT(t){const a=t[0],b=t[1];return Math.hypot(a.clientX-b.clientX,a.cl
 let pinch0=0;
 function onPtrMove(e){
  if(e.touches&&e.touches.length===2){
-  const d=distT(e.touches);if(pinch0){view.d=clamp(view.d*(pinch0/d),7,18);pinch0=d;applyView()}e.preventDefault();didMove=true;return;
+  const d=distT(e.touches);if(pinch0){view.d=clamp(view.d*(pinch0/d),10,17);pinch0=d;applyView()}e.preventDefault();didMove=true;return;
  }
  if(!drag)return;
  const ev=e.touches?e.touches[0]:e;
  const dx=ev.clientX-px, dy=ev.clientY-py;
- if(!didMove&&Math.hypot(dx,dy)<7)return;
- didMove=true;px=ev.clientX;py=ev.clientY;
- view.th-=dx*0.007;view.ph=clamp(view.ph+dy*0.005, 0.35, 1.25);
- applyView();
+ if(Math.hypot(dx,dy)>7)didMove=true; // drag never rotates the camera
 }
 function onPtrUp(e){
  if(e.touches&&e.touches.length){if(e.touches.length<2)pinch0=0;return}
@@ -693,7 +1072,7 @@ function onPtrUp(e){
  const was=didMove;drag=false;didMove=false;pinch0=0;
  if(!was)pick(ev.clientX, ev.clientY);
 }
-function onWheel(e){e.preventDefault();view.d=clamp(view.d+e.deltaY*0.01,7,18);applyView()}
+function onWheel(e){e.preventDefault();view.d=clamp(view.d+e.deltaY*0.01,10,17);applyView()}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 
 const ray=()=>new T.Raycaster();
@@ -804,12 +1183,32 @@ function placePiecesRebuild(){
  const bd=Array.from({length:64},(_,i)=>snap[i]||null);
  placePieces(bd,{keep:false});
 }
-api.resetView=function(){
- view={th:vDef.th, ph:vDef.ph, d:vDef.d};applyView();
-};
+api.resetView=function(){view={th:vDef.th, ph:vDef.ph, d:vDef.d};applyView()};
 api.resize=resize;
 api.tap=function(i){if(onClick)onClick(i)};
 api.setClick=function(fn){onClick=fn};
 api.setFallback=function(fn){onFallback=fn};
+api.cameraPose=function(){return{th:view.th,ph:view.ph,d:view.d,x:camera?camera.position.x:0,y:camera?camera.position.y:0,z:camera?camera.position.z:0}};
+api.fxTable=function(){const o={};Object.keys(FXMAP).forEach(k=>{const s=FXMAP[k];o[k]={name:s.name,sig:s.sig,special:s.special||null}});return o};
+api.fxIds=function(){const ids=[];Object.keys(FXMAP).forEach(k=>{const s=FXMAP[k];ids.push(s.sig);if(s.special)ids.push(s.special)});return ids};
+api.lastFx=function(){return lastFx};
+api.pickFx=pickFx;
+api.demo=function(spec){
+ if(!renderer)return null;
+ const preBd=Array(64).fill(null), postBd=Array(64).fill(null);
+ (spec.pieces||[]).forEach(p=>{preBd[p.i]={t:p.t,c:p.c};postBd[p.i]={t:p.t,c:p.c}});
+ const m=spec.m;const typ=preBd[m.f]&&preBd[m.f].t;
+ // apply a shallow post
+ const after=spec.post||{};
+ Object.keys(after).forEach(i=>{const n=+i;postBd[n]=after[n]});
+ if(m.k==='m'||m.k==='v'||m.k==='tp'||m.k==='pu'){postBd[m.t]=preBd[m.f];postBd[m.f]=null;if(m.pr)postBd[m.t]={t:m.pr,c:preBd[m.f]&&preBd[m.f].c}}
+ if(m.k==='ex'){postBd[m.f]=null;(m.x||[]).forEach(i=>postBd[i]=null)}
+ if(m.k==='sh'){(m.x||[]).forEach(i=>postBd[i]=null)}
+ if(m.k==='sw'||m.k==='os'){const a=preBd[m.f],b=preBd[m.t];postBd[m.t]=a;postBd[m.f]=b}
+ const dead=spec.dead||[];
+ animateMove({m,dead,pre:{bd:preBd},side:spec.side||'w'}, postBd);
+ return lastFx;
+};
 Object.defineProperty(api,'reduced',{get:()=>reduced});
+Object.defineProperty(api,'FXMAP',{get:()=>FXMAP});
 })(typeof globalThis!=='undefined'?globalThis:this);
