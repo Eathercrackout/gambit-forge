@@ -77,265 +77,408 @@ function add(p, geo, m, y, sx,sy,sz){const x=mesh(geo,m);if(y!=null)x.position.y
 
 function pal(c, accent){
  const C=COL[c]||COL.w;
- return {body:mat(C.body), acc:mat(accent||C.acc,{metalness:.35,roughness:.35}), ink:mat(C.ink), glow:mat(accent||C.acc,{emissive:accent||C.acc,emissiveIntensity:.55,roughness:.3})};
+ const acc=accent||C.acc;
+ return {
+  body:mat(C.body,{roughness:.5,metalness:.08}),
+  acc:mat(acc,{metalness:.4,roughness:.32,emissive:acc,emissiveIntensity:.32}),
+  ink:mat(C.ink),
+  glow:mat(acc,{emissive:acc,emissiveIntensity:.7,roughness:.22,metalness:.2})
+ };
 }
 
-function pedestal(g, P, h, fat){
+function pedestal(g,P,h,fat){
  fat=fat||1;const G=geoLib();
- add(g,G.foot,P.body, .035, fat,1,fat);
- add(g,G.ring,P.body, .09, fat,1,fat);
- const st=add(g,G.stem,P.body, .10+h/2, fat,1,fat);st.scale.y=h/.36;
- add(g,G.collar,P.body, .10+h+.025, fat,1,fat);
+ add(g,G.foot,P.body,.035,fat,1,fat);
+ add(g,G.ring,P.body,.09,fat,1,fat);
+ const st=add(g,G.stem,P.body,.10+h/2,fat,1,fat);st.scale.y=h/.36;
+ add(g,G.collar,P.acc,.10+h+.025,fat*.95,1,fat*.95);
  return .12+h+.05;
 }
+function accOf(type,accent){
+ if(accent){const n=parseInt(String(accent).replace('#',''),16);if(!isNaN(n)&&n)return n}
+ return ACCENT[type]!=null?ACCENT[type]:0xc9a227;
+}
+const ACCENT={
+ K:0xd4a72c,Q:0xe8c547,R:0x90a4ae,B:0x8d6bd1,N:0x8d6e63,P:0xc9b896,
+ k:0xe53935,o:0xffb300,h:0xb388ff,
+ E:0xce93d8,O:0xec407a,m:0x43a047,
+ t:0x6d4c41,r:0xa1887f,w:0xab47bc,
+ d:0xe53935,e:0xbdbdbd,p:0x8e24aa,
+ c:0xd4a017,z:0x37474f,n:0x7986cb,C:0xffd54f,L:0xffc107,
+ Y:0xa1887f,J:0x6d4c41,U:0x78909c,Z:0x9ccc65,I:0x26a69a,S:0xff9800,H:0x607d8b,
+ V:0x26a69a,W:0x9c27b0,F:0x4fc3f7,A:0x66bb6a,G:0xb39ddb,X:0xff3d00,
+ D:0xff5722,y:0x00897b,q:0x29b6f6,s:0x81d4fa
+};
+const BADGE={
+ K:'K',Q:'Q',R:'R',B:'B',N:'N',P:'P',
+ k:'WL',o:'MN',h:'PH',E:'EM',O:'PN',m:'AZ',
+ t:'TW',r:'RM',w:'WD',d:'CD',e:'EL',p:'PR',
+ c:'CM',z:'ZB',n:'NR',C:'LC',L:'PD',
+ Y:'BR',J:'SG',U:'SB',Z:'ST',I:'RN',S:'SQ',H:'BW',
+ V:'VA',W:'KP',F:'FR',A:'LB',G:'WH',X:'BB',
+ D:'DR',y:'WY',q:'OR',s:'SR'
+};
+const PNAME={
+ K:'King',Q:'Queen',R:'Rook',B:'Bishop',N:'Knight',P:'Pawn',
+ k:'Warlord',o:'Monarch',h:'Phantom King',E:'Empress',O:'Princess',m:'Amazon',
+ t:'Tower',r:'Ram',w:'Warden',d:'Cardinal',e:'Elephant',p:'Priest',
+ c:'Camel',z:'Zebra',n:'Nightrider',C:'Lancer',L:'Paladin',
+ Y:'Berolina',J:'Sergeant',U:'Shieldbearer',Z:'Scout',I:'Runner',S:'Squire',H:'Bulwark',
+ V:'Vaulter',W:'Keeper',F:'Frostcaller',A:'Longbow',G:'Wraith',X:'Bombard',
+ D:'Dragon',y:'Wyvern',q:'Oracle',s:'Seer'
+};
+const badgeCache={};
+function badgeTex(text,col){
+ const key=text+'|'+col;
+ if(badgeCache[key])return badgeCache[key];
+ const c=document.createElement('canvas');c.width=128;c.height=72;
+ const g=c.getContext('2d');
+ g.clearRect(0,0,128,72);
+ const r=18;g.beginPath();
+ g.moveTo(r,8);g.arcTo(120,8,120,64,r);g.arcTo(120,64,8,64,r);g.arcTo(8,64,8,8,r);g.arcTo(8,8,120,8,r);
+ g.closePath();g.fillStyle='rgba(10,12,18,.88)';g.fill();
+ g.lineWidth=5;g.strokeStyle='#'+('000000'+col.toString(16)).slice(-6);g.stroke();
+ g.fillStyle='#fff';g.font='bold '+(text.length>1?36:46)+'px system-ui,sans-serif';
+ g.textAlign='center';g.textBaseline='middle';g.fillText(text,64,40);
+ const tex=new T.CanvasTexture(c);if(T.SRGBColorSpace)tex.colorSpace=T.SRGBColorSpace;
+ tex.needsUpdate=true;badgeCache[key]=tex;return tex;
+}
+function addBadge(g,type,acc,topY,fullName){
+ if(!badgesOn&&!fullName)return topY;
+ const label=fullName||BADGE[type]||type;
+ const tex=badgeTex(label,acc);
+ const w=fullName?Math.max(.7,label.length*.11):.38,h=fullName?.22:.22;
+ const pl=new T.Mesh(new T.PlaneGeometry(w,h), new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
+ pl.position.y=topY+(fullName?.2:.16);pl.userData.billboard=1;g.add(pl);
+ return pl.position.y+h*.5;
+}
+function namePlate(g,type,acc){
+ const nm=PNAME[type]||type;
+ const c=document.createElement('canvas');c.width=384;c.height=80;
+ const ctx=c.getContext('2d');
+ ctx.clearRect(0,0,384,80);
+ ctx.fillStyle='rgba(10,12,18,.92)';
+ ctx.beginPath();if(ctx.roundRect)ctx.roundRect(6,8,372,64,14);else ctx.rect(6,8,372,64);ctx.fill();
+ ctx.strokeStyle='#'+('000000'+acc.toString(16)).slice(-6);ctx.lineWidth=6;ctx.stroke();
+ ctx.fillStyle='#fff';ctx.font='bold 36px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(nm,192,42);
+ const tex=new T.CanvasTexture(c);if(T.SRGBColorSpace)tex.colorSpace=T.SRGBColorSpace;
+ const pl=new T.Mesh(new T.PlaneGeometry(.95,.22), new T.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
+ pl.position.y=0.03;pl.position.z=0.48;pl.rotation.x=-Math.PI/2;g.add(pl);
+}
+
+let badgesOn=true, orbitLock=false;
 
 function pieceMesh(type, color, accent){
- const key=type+'|'+color+'|'+(accent||'')+'|'+(reduced?1:0);
- // Don't cache groups we mutate (freeze/fall); build fresh but reuse geos/mats via pal
- const G=geoLib(), P=pal(color, accent), g=new T.Group();
+ const acc=accOf(type,accent);
+ const G=geoLib(), P=pal(color, acc), g=new T.Group();
  g.userData={type,color};
- const acc=accent?parseInt(String(accent).replace('#',''),16)||COL[color].acc:COL[color].acc;
- const Pa=pal(color, acc);
- let top;
+ let topY=.8;
+ const ring=(y,r)=>{const m=add(g,new T.TorusGeometry(r,.028,6,14),P.glow,y);m.rotation.x=Math.PI/2;return m};
  switch(type){
-  case 'K':{ // King — cross
-   top=pedestal(g,P, .55, 1.05);
-   add(g,G.cyl(.20,.22,.12,14),P.acc, top+.06);
-   const cr=new T.Group();cr.position.y=top+.22;g.add(cr);
-   add(cr,G.box(.06,.28,.06),P.acc,0);add(cr,G.box(.18,.06,.06),P.acc, .04);
-   break;}
-  case 'k':{ // Warlord — spiked helm
-   top=pedestal(g,P, .42, 1.15);
-   add(g,G.box(.36,.22,.36),P.body, top+.1);
-   add(g,G.cone(.18,.22,8),P.acc, top+.28);
-   for(let i=0;i<6;i++){const s=add(g,G.coneS,P.acc, top+.22);s.position.set(Math.cos(i*Math.PI/3)*.2, top+.22, Math.sin(i*Math.PI/3)*.2);s.rotation.z=i?0.5:-.5}
-   break;}
-  case 'o':{ // Monarch — ornate crown
-   top=pedestal(g,P, .58, 1.1);
-   add(g,G.cyl(.22,.24,.1,16),P.acc, top+.05);
-   for(let i=0;i<8;i++){const a=i*Math.PI/4, s=add(g,G.cone(.05,.2,6),P.glow,0);s.position.set(Math.cos(a)*.18, top+.2, Math.sin(a)*.18)}
-   add(g,G.ballS,P.glow, top+.32);
-   break;}
-  case 'h':{ // Phantom King — ghostly
-   const Pg={body:mat(0x7e57c2,{transparent:true,opacity:.45,emissive:0x4a2080,emissiveIntensity:.4,roughness:.2}),acc:mat(0xc5b0ff,{transparent:true,opacity:.7,emissive:0x8866ff,emissiveIntensity:.5})};
-   top=pedestal(g,Pg, .55, .9);
-   const cr=new T.Group();cr.position.y=top+.2;g.add(cr);
-   add(cr,G.box(.05,.24,.05),Pg.acc,0);add(cr,G.box(.16,.05,.05),Pg.acc,.03);
-   add(g,G.tor,Pg.acc, top+.08);
-   break;}
-  case 'Q':{ // Queen
-   top=pedestal(g,P, .52, 1);
-   add(g,G.cyl(.18,.2,.1,14),P.acc, top+.05);
-   for(let i=0;i<8;i++){const a=i*Math.PI/4,s=add(g,G.cone(.035,.16,6),P.acc,0);s.position.set(Math.cos(a)*.16, top+.18, Math.sin(a)*.16)}
-   add(g,G.ballS,P.glow, top+.28);
-   break;}
-  case 'E':{ // Empress — taller crown + jewels
-   top=pedestal(g,P, .56, 1.05);
-   add(g,G.cyl(.2,.22,.12,14),P.acc, top+.06);
-   for(let i=0;i<10;i++){const a=i*Math.PI/5,s=add(g,G.cone(.04,.22,6),P.acc,0);s.position.set(Math.cos(a)*.18, top+.22, Math.sin(a)*.18);if(i%2===0)add(g,G.ballS,P.glow, top+.12).position.set(Math.cos(a)*.2, top+.12, Math.sin(a)*.2)}
-   add(g,G.ball,P.glow, top+.36);
-   break;}
-  case 'O':{ // Princess — slender floral
-   top=pedestal(g,P, .48, .85);
-   for(let i=0;i<6;i++){const a=i*Math.PI/3,s=add(g,G.cone(.03,.12,6),P.acc,0);s.position.set(Math.cos(a)*.12, top+.14, Math.sin(a)*.12)}
-   add(g,G.ballS,P.glow, top+.22);
-   add(g,G.tor,P.acc, top+.05).scale.set(.8,.8,.8);
-   break;}
-  case 'm':{ // Amazon — queen + spear + helm
-   top=pedestal(g,P, .52, 1.05);
-   add(g,G.cyl(.18,.2,.1,14),P.acc, top+.05);
-   for(let i=0;i<6;i++){const a=i*Math.PI/3,s=add(g,G.cone(.03,.14,6),P.acc,0);s.position.set(Math.cos(a)*.15, top+.16, Math.sin(a)*.15)}
-   const sp=add(g,G.cyl(.02,.02,.7,6),P.acc, top+.2);sp.position.x=.16;sp.rotation.z=-.25;
-   add(g,G.cone(.05,.14,6),P.glow, top+.52).position.set(.16,top+.52,0);
-   add(g,G.ballS,P.glow, top+.26);
-   break;}
-  case 'R':{ // Rook
-   top=pedestal(g,P, .32, 1.15);
-   add(g,G.cyl(.22,.24,.32,10),P.body, top+.16);
-   add(g,G.box(.48,.08,.48),P.body, top+.36);
-   for(const [x,z] of [[-.18,-.18],[-.18,.18],[.18,-.18],[.18,.18]]){const m=add(g,G.merlon,P.acc, top+.46);m.position.set(x,top+.46,z)}
-   break;}
-  case 't':{ // Tower — taller, extra battlement
-   top=pedestal(g,P, .28, 1.2);
-   add(g,G.cyl(.2,.22,.28,10),P.body, top+.14);
-   add(g,G.cyl(.18,.2,.28,10),P.body, top+.4);
-   add(g,G.box(.46,.08,.46),P.body, top+.56);
-   for(const [x,z] of [[-.17,-.17],[-.17,.17],[.17,-.17],[.17,.17],[0,-.2],[0,.2],[-.2,0],[.2,0]]){const m=add(g,G.merlon,P.acc, top+.66);m.position.set(x,top+.66,z);m.scale.set(.8,1.2,.8)}
-   break;}
-  case 'r':{ // Ram — battering ram + horns
-   top=pedestal(g,P, .32, 1.2);
-   add(g,G.cyl(.22,.24,.3,10),P.body, top+.15);
-   add(g,G.box(.48,.08,.48),P.body, top+.34);
-   const ram=add(g,G.cyl(.07,.1,.5,8),P.acc, top+.18);ram.rotation.x=Math.PI/2;ram.position.set(0,top+.18,.32);
-   add(g,G.sph(.1,8,6),P.acc, top+.18).position.set(0,top+.18,.55);
-   break;}
-  case 'w':{ // Warden — watch eye
-   top=pedestal(g,P, .36, 1.15);
-   add(g,G.cyl(.22,.24,.34,10),P.body, top+.17);
-   add(g,G.box(.48,.08,.48),P.body, top+.38);
-   for(const [x,z] of [[-.18,-.18],[-.18,.18],[.18,-.18],[.18,.18]]){const m=add(g,G.merlon,P.acc, top+.48);m.position.set(x,top+.48,z)}
-   add(g,G.ball,P.glow, top+.2).scale.set(1,.7,1);
-   break;}
-  case 'B':{ // Bishop
-   top=pedestal(g,P, .48, .85);
-   add(g,G.cone(.16,.36,10),P.body, top+.2);
-   add(g,G.ballS,P.body, top+.4);
-   const slit=add(g,G.box(.04,.2,.08),P.ink, top+.22);
-   add(g,G.ballS,P.acc, top+.5);
-   break;}
-  case 'd':{ // Cardinal — wide hat
-   top=pedestal(g,P, .44, .85);
-   add(g,G.cone(.15,.3,10),P.body, top+.16);
-   add(g,G.cyl(.28,.28,.05,16),P.acc, top+.28);
-   add(g,G.cone(.14,.16,10),P.acc, top+.38);
-   add(g,G.ballS,P.glow, top+.48);
-   break;}
-  case 'e':{ // Elephant — stout + ears + trunk
-   top=pedestal(g,P, .28, 1.25);
-   add(g,G.ballL,P.body, top+.16).scale.set(1.15,1,1.2);
-   const ear=add(g,G.box(.06,.22,.28),P.body, top+.2);ear.position.set(-.28,top+.2,0);
-   const ear2=ear.clone();ear2.position.x=.28;g.add(ear2);
-   const tr=add(g,G.cyl(.05,.07,.36,8),P.body, top+.02);tr.position.set(0,top+.02,.28);tr.rotation.x=.9;
-   break;}
-  case 'p':{ // Priest — halo
-   top=pedestal(g,P, .46, .8);
-   add(g,G.cone(.14,.3,10),P.body, top+.16);
-   add(g,G.ballS,P.body, top+.34);
-   const halo=add(g,G.tor,P.glow, top+.5);halo.rotation.x=Math.PI/2;halo.scale.set(1.1,1.1,1.1);
-   break;}
-  case 'N': case 'c': case 'z': case 'n': case 'C': case 'L':{
-   const isC=type==='c', isZ=type==='z', isNR=type==='n', isL=type==='C', isP=type==='L';
-   top=pedestal(g,P, isC?.26:.22, isC?1.15:1);
-   add(g,G.ball,P.body, top+.12).scale.set(1.15,1,1.2);
-   const neckH=isC?.44:.36, neck=add(g,G.cyl(isC?.06:.07, .11, neckH, 8),P.body, 0);
-   neck.position.set(0, top+neckH*.45, .1); neck.rotation.x=-0.85;
-   const hd=add(g,G.box(isC?.15:.17, isC?.14:.18, isC?.34:.30),P.body, 0);
-   hd.position.set(0, top+neckH+.02, .26); hd.rotation.x=-0.35;
-   const sn=add(g,G.box(.11,.08,.18),P.body,0);sn.position.set(0, top+neckH-.04, .46);
-   const e1=add(g,G.cone(.05,.18,6),P.body,0);e1.position.set(-.07, top+neckH+.18, .16);e1.rotation.z=.25;e1.rotation.x=-.15;
-   const e2=e1.clone();e2.position.x=.07;e2.rotation.z=-.25;g.add(e2);
-   if(isZ){ // zebra ridges
-    for(let i=0;i<3;i++){const r=add(g,G.box(.2,.03,.04),P.ink,0);r.position.set(0, top+.12+i*.08, .12)}
-   }
-   if(isC){ // camel hump
-    add(g,G.ball,P.body, top+.16).position.set(0,top+.2,-.06);
-   }
-   if(isNR){ // nightrider cape
-    const cp=add(g,G.plane, mat(0x5c6bc0,{side:T.DoubleSide,transparent:true,opacity:.85,roughness:.6}), 0);
-    cp.geometry=new T.PlaneGeometry(.36,.5);cp.position.set(0,top+.1,-.16);cp.rotation.x=.3;
-   }
-   if(isL){ // lance
-    const ln=add(g,G.cyl(.018,.018,.7,6),P.acc,0);ln.position.set(.16, top+.3, .1);ln.rotation.x=-.6;
-    add(g,G.coneS,P.acc,0).position.set(.16, top+.58, .32);
-   }
-   if(isP){ // paladin cross + shield
-    const sh=add(g,G.box(.04,.22,.18),P.acc,0);sh.position.set(-.2, top+.16, .1);
-    add(g,G.box(.04,.14,.04),P.glow,0).position.set(0, top+neckH+.28, .16);
-   }
-   break;}
-  case 'P': case 'Y': case 'J': case 'U': case 'Z': case 'I': case 'S': case 'H':{
-   const fat=type==='H'?1.25:type==='I'?.75:1;
-   const h=type==='Z'||type==='I'?.32:type==='H'?.2:.26;
-   top=pedestal(g,P, h, fat);
-   add(g, type==='H'?G.ballL:G.ball, P.body, top+.12, type==='H'?1.05:type==='I'?.8:1);
-   if(type==='Y'){ // berolina diamond
-    const d=add(g,G.box(.12,.12,.12),P.acc, top+.22);d.rotation.set(Math.PI/4,Math.PI/4,0);
-   }
-   if(type==='J'){ // sergeant chevron
-    const c1=add(g,G.box(.2,.04,.06),P.acc, top+.02);c1.rotation.y=.4;
-    const c2=c1.clone();c2.rotation.y=-.4;g.add(c2);
-   }
-   if(type==='U'){ // shield
-    const sh=add(g,G.box(.22,.26,.05),P.acc, top+.05);sh.position.set(0,top+.08,.22);
-   }
-   if(type==='Z'){ // scout cap
-    add(g,G.cyl(.16,.18,.05,10),P.acc, top+.22);
-    add(g,G.box(.12,.03,.16),P.acc, top+.22).position.set(0,top+.22,.16);
-   }
-   if(type==='S'){ // squire sword
-    const sw=add(g,G.box(.03,.28,.03),P.acc, top+.16);sw.position.set(.16,top+.16,0);
-    add(g,G.box(.1,.03,.03),P.acc, top+.06).position.set(.16,top+.06,0);
-   }
-   if(type==='H'){ // bulwark plates
-    add(g,G.box(.4,.16,.4),P.acc, top+.02);
-   }
-   if(type==='I'){ // runner lean stripe
-    add(g,G.box(.06,.28,.06),P.acc, top+.1);
-   }
-   break;}
-  case 'V':{ // Vaulter — spring / arc
-   top=pedestal(g,P, .28, .95);
-   add(g,G.ball,P.body, top+.12);
-   const a=add(g, new T.TorusGeometry(.2,.03,6,12,Math.PI), P.acc, top+.2);a.rotation.x=Math.PI/2;a.rotation.z=Math.PI;
-   break;}
-  case 'W':{ // Keeper — key / swap ring
-   top=pedestal(g,P, .34, 1);
-   add(g,G.ball,P.body, top+.12);
-   add(g,G.tor,P.glow, top+.28);
-   const k=add(g,G.box(.04,.2,.04),P.acc, top+.1);k.position.x=.2;
-   break;}
-  case 'F':{ // Frostcaller — crystals
-   top=pedestal(g,P, .32, 1);
-   const ice=mat(0xa8e4ff,{emissive:0x3fa7ff,emissiveIntensity:.45,roughness:.2,metalness:.3,transparent:true,opacity:.9});
-   for(let i=0;i<6;i++){const a=i*Math.PI/3,s=add(g,G.cone(.06,.28,5),ice,0);s.position.set(Math.cos(a)*.12, top+.18, Math.sin(a)*.12);s.rotation.z=(i%2?-.2:.2)}
-   add(g,G.ballS,ice, top+.3);
-   break;}
-  case 'A':{ // Longbow
-   top=pedestal(g,P, .28, .9);
-   add(g,G.ballS,P.body, top+.1);
-   const bow=add(g, new T.TorusGeometry(.26,.025,6,16,Math.PI), P.acc, top+.2);bow.rotation.y=Math.PI/2;
-   const st=add(g,G.cyl(.01,.01,.5,4),P.ink, top+.2);st.rotation.z=Math.PI/2;st.position.set(0,top+.2,0);
-   break;}
-  case 'G':{ // Wraith
-   const W={body:mat(0x8e7cc3,{transparent:true,opacity:.5,emissive:0x4a3870,emissiveIntensity:.35,roughness:.2}),acc:mat(0xccc0ff,{transparent:true,opacity:.7,emissive:0x8866cc,emissiveIntensity:.4})};
-   top=pedestal(g,W, .4, .75);
-   add(g,G.cone(.14,.36,8),W.body, top+.2);
-   add(g,G.ballS,W.acc, top+.38);
-   break;}
-  case 'X':{ // Bombard — barrel
-   top=pedestal(g,P, .2, 1.2);
-   const br=add(g,G.cyl(.12,.14,.44,10),P.acc, top+.2);br.rotation.x=-1.1;br.position.set(0,top+.2,.12);
-   add(g,G.cyl(.16,.16,.1,12),P.body, top+.08);
-   add(g,G.ballS, mat(0x222,{emissive:0xe74c3c,emissiveIntensity:.4}), top+.28).position.set(0,top+.16,.34);
-   break;}
-  case 'D':{ // Dragon — wings + horns
-   top=pedestal(g,P, .28, 1.15);
-   add(g,G.ballL,P.body, top+.16);
-   add(g,G.box(.14,.12,.28),P.body, top+.2).position.set(0,top+.14,.22);
-   const tail=add(g,G.cyl(.03,.07,.4,6),P.body,0);tail.position.set(0,top+.1,-.28);tail.rotation.x=-.8;
-   const mkWing=(side)=>{const w=add(g,G.wing, mat(acc,{side:T.DoubleSide,transparent:true,opacity:.85,emissive:acc,emissiveIntensity:.15,roughness:.55}),0);w.position.set(side*.28, top+.28, 0);w.rotation.set(-.3, side*.7, side*.6);w.userData.wing=side;return w};
-   mkWing(-1);mkWing(1);
-   const h1=add(g,G.coneS,P.acc,0);h1.position.set(-.07,top+.32,.1);
-   const h2=h1.clone();h2.position.x=.07;g.add(h2);
-   break;}
-  case 'y':{ // Wyvern — one pair swept wings, thinner, barbed tail
-   top=pedestal(g,P, .24, .9);
-   add(g,G.ball,P.body, top+.12);
-   add(g,G.box(.1,.1,.24),P.body, top+.14).position.set(0,top+.12,.18);
-   const tail=add(g,G.cyl(.02,.05,.46,6),P.body,0);tail.position.set(0,top+.08,-.28);tail.rotation.x=-.5;
-   add(g,G.coneS,P.acc,0).position.set(0, top-.02, -.5);
-   const mk=(side)=>{const w=add(g,G.wing, mat(acc,{side:T.DoubleSide,transparent:true,opacity:.8,roughness:.5}),0);w.scale.set(.8,1.2,1);w.position.set(side*.22, top+.24, -.04);w.rotation.set(-.15, side*.9, side*.9);w.userData.wing=side};
+  case 'K':{ // King — tall gold cross, the tallest royal with a clear +
+   const t=pedestal(g,P,.62,1.0);
+   add(g,G.cyl(.22,.24,.14,16),P.glow,t+.07);
+   add(g,G.box(.08,.42,.08),P.glow,t+.32);
+   add(g,G.box(.28,.08,.08),P.glow,t+.28);
+   ring(t,.2);topY=t+.55;break;}
+  case 'k':{ // Warlord — squat iron helm, red spikes, battle-axe (no cross)
+   const t=pedestal(g,P,.28,1.25);
+   add(g,G.box(.44,.28,.4),P.body,t+.14);
+   add(g,G.cyl(.22,.22,.16,12),P.acc,t+.32);
+   for(let i=0;i<8;i++){const a=i*Math.PI/4,s=add(g,G.cone(.05,.2,6),P.glow,0);s.position.set(Math.cos(a)*.22,t+.44,Math.sin(a)*.22)}
+   const axe=add(g,G.cyl(.025,.025,.55,6),P.ink,t+.28);axe.position.x=.32;axe.rotation.z=-.25;
+   add(g,G.box(.22,.16,.05),P.glow,t+.52).position.set(.38,t+.52,0);
+   topY=t+.58;break;}
+  case 'o':{ // Monarch — huge radiating crown + orb scepter, widest royal
+   const t=pedestal(g,P,.58,1.15);
+   add(g,G.cyl(.26,.28,.12,16),P.glow,t+.06);
+   for(let i=0;i<8;i++){const a=i*Math.PI/4,s=add(g,G.cone(.055,.32,6),P.glow,0);s.position.set(Math.cos(a)*.22,t+.26,Math.sin(a)*.22);add(g,G.ballS,P.glow,0).position.set(Math.cos(a)*.22,t+.42,Math.sin(a)*.22)}
+   add(g,G.ball,P.glow,t+.48);
+   const sc=add(g,G.cyl(.02,.02,.7,6),P.acc,t+.3);sc.position.x=.3;
+   add(g,G.ballS,P.glow,t+.66).position.set(.3,t+.66,0);
+   topY=t+.7;break;}
+  case 'h':{ // Phantom King — floating, no solid foot, hollow rings, ghost cape
+   const Pg={body:mat(0x7e57c2,{transparent:true,opacity:.4,emissive:0x4a2080,emissiveIntensity:.5,roughness:.15}),acc:mat(0xe1bee7,{transparent:true,opacity:.75,emissive:0xb388ff,emissiveIntensity:.7})};
+   add(g,new T.TorusGeometry(.28,.04,8,16),Pg.acc,.12).rotation.x=Math.PI/2;
+   add(g,new T.TorusGeometry(.2,.03,8,16),Pg.acc,.4).rotation.x=Math.PI/2;
+   add(g,G.box(.05,.28,.05),Pg.acc,.7);
+   add(g,G.box(.18,.05,.05),Pg.acc,.66);
+   const cp=add(g,new T.PlaneGeometry(.5,.55),Pg.body,.35);cp.position.z=-.16;cp.rotation.x=.25;cp.material.side=T.DoubleSide;
+   topY=1.0;break;}
+  case 'Q':{ // Queen — 8-point coronet, large central orb
+   const t=pedestal(g,P,.52,1.0);
+   add(g,G.cyl(.2,.22,.1,14),P.acc,t+.05);
+   for(let i=0;i<8;i++){const a=i*Math.PI/4,s=add(g,G.cone(.04,.2,6),P.glow,0);s.position.set(Math.cos(a)*.17,t+.2,Math.sin(a)*.17)}
+   add(g,G.ball,P.glow,t+.36);
+   topY=t+.5;break;}
+  case 'E':{ // Empress — double crown + jewel belt, taller than queen
+   const t=pedestal(g,P,.62,1.08);
+   add(g,G.cyl(.22,.24,.08,14),P.glow,t+.04);
+   add(g,G.cyl(.16,.2,.08,14),P.glow,t+.14);
+   for(let i=0;i<10;i++){const a=i*Math.PI/5,s=add(g,G.cone(.04,.26,6),P.glow,0);s.position.set(Math.cos(a)*.2,t+.28,Math.sin(a)*.2)}
+   for(let i=0;i<6;i++){const a=i*Math.PI/3;add(g,G.ballS,P.glow,t+.02).position.set(Math.cos(a)*.22,t+.02,Math.sin(a)*.22)}
+   add(g,G.ball,P.glow,t+.48);
+   topY=t+.62;break;}
+  case 'O':{ // Princess — slim floral tiara (petals, not spikes), shorter
+   const t=pedestal(g,P,.4,.82);
+   ring(t,.14);
+   for(let i=0;i<5;i++){const a=i*Math.PI*2/5,s=add(g,G.ballS,P.glow,0);s.position.set(Math.cos(a)*.14,t+.16,Math.sin(a)*.14);s.scale.set(1.1,.55,1.1)}
+   add(g,G.ballS,P.glow,t+.26);
+   topY=t+.4;break;}
+  case 'm':{ // Amazon — warrior helm + long spear (no coronet)
+   const t=pedestal(g,P,.4,1.1);
+   add(g,G.cyl(.18,.2,.22,12),P.body,t+.12);
+   add(g,G.cone(.16,.16,8),P.acc,t+.3);
+   const sp=add(g,G.cyl(.02,.02,.95,6),P.glow,t+.4);sp.position.set(.22,t+.4,0);sp.rotation.z=-.2;
+   add(g,G.cone(.06,.16,6),P.glow,t+.88).position.set(.22,t+.88,0);
+   topY=t+.98;break;}
+  case 'R':{ // Rook — classic 4 merlons
+   const t=pedestal(g,P,.3,1.2);
+   add(g,G.cyl(.24,.26,.34,10),P.body,t+.17);
+   add(g,G.box(.52,.1,.52),P.body,t+.38);
+   for(const[x,z] of [[-.18,-.18],[-.18,.18],[.18,-.18],[.18,.18]]){add(g,G.merlon,P.acc,t+.5).position.set(x,t+.5,z)}
+   topY=t+.6;break;}
+  case 't':{ // Tower — much taller two-tier keep, 8 merlons
+   const t=pedestal(g,P,.22,1.15);
+   add(g,G.cyl(.22,.24,.28,10),P.body,t+.14);
+   add(g,G.cyl(.17,.2,.4,10),P.body,t+.46);
+   add(g,G.box(.44,.08,.44),P.body,t+.68);
+   for(let i=0;i<8;i++){const a=i*Math.PI/4;add(g,G.merlon,P.acc,t+.8).position.set(Math.cos(a)*.16,t+.8,Math.sin(a)*.16)}
+   topY=t+.95;break;}
+  case 'r':{ // Ram — long horizontal battering ram + horns, squat
+   const t=pedestal(g,P,.18,1.3);
+   add(g,G.box(.4,.28,.4),P.body,t+.16);
+   const ram=add(g,G.cyl(.08,.12,.7,10),P.acc,t+.18);ram.rotation.x=Math.PI/2;ram.position.set(0,t+.18,.4);
+   add(g,G.ball,P.glow,t+.18).position.set(0,t+.18,.75);
+   const h1=add(g,G.cone(.06,.22,6),P.acc,0);h1.position.set(-.18,t+.32,.1);h1.rotation.z=.4;
+   const h2=h1.clone();h2.position.x=.18;h2.rotation.z=-.4;g.add(h2);
+   topY=t+.48;break;}
+  case 'w':{ // Warden — watch-dome and glowing eye, not merlons
+   const t=pedestal(g,P,.34,1.15);
+   add(g,G.cyl(.24,.26,.3,12),P.body,t+.15);
+   const dome=add(g,new T.SphereGeometry(.28,12,8,0,Math.PI*2,0,Math.PI/2),P.acc,t+.3);
+   add(g,G.ball,P.glow,t+.22).scale.set(1.1,.7,1.1);
+   ring(t+.42,.2);
+   topY=t+.58;break;}
+  case 'B':{ // Bishop — tall mitre + slit
+   const t=pedestal(g,P,.5,.82);
+   add(g,G.cone(.17,.42,10),P.body,t+.22);
+   add(g,G.box(.045,.24,.1),P.ink,t+.24);
+   add(g,G.ballS,P.glow,t+.48);
+   topY=t+.62;break;}
+  case 'd':{ // Cardinal — huge flat red galero, widest hat
+   const t=pedestal(g,P,.32,.9);
+   add(g,G.cone(.14,.22,10),P.body,t+.12);
+   add(g,G.cyl(.42,.42,.05,20),P.glow,t+.24);
+   add(g,G.cone(.12,.12,10),P.acc,t+.32);
+   add(g,G.ballS,P.glow,t+.42);
+   topY=t+.52;break;}
+  case 'e':{ // Elephant — animal, trunk, ears, tusks (no hat)
+   const t=pedestal(g,P,.16,1.2);
+   add(g,G.ballL,P.body,t+.2).scale.set(1.25,1.05,1.3);
+   const ear=add(g,G.box(.05,.28,.34),P.acc,t+.24);ear.position.set(-.34,t+.24,0);
+   const ear2=ear.clone();ear2.position.x=.34;g.add(ear2);
+   const tr=add(g,G.cyl(.05,.08,.42,8),P.body,0);tr.position.set(0,t+.02,.32);tr.rotation.x=1.0;
+   const tu=add(g,G.cyl(.02,.03,.28,6),P.glow,0);tu.position.set(-.1,t+.08,.28);tu.rotation.x=.7;
+   const tu2=tu.clone();tu2.position.x=.1;g.add(tu2);
+   topY=t+.48;break;}
+  case 'p':{ // Priest — hood + tall staff + high halo
+   const t=pedestal(g,P,.36,.8);
+   add(g,G.cone(.2,.16,10),P.body,t+.22); // hood
+   add(g,G.ball,P.body,t+.12);
+   const st=add(g,G.cyl(.02,.02,.75,6),P.acc,t+.35);st.position.x=.22;
+   const halo=add(g,new T.TorusGeometry(.16,.025,8,16),P.glow,t+.58);halo.rotation.x=Math.PI/2;
+   topY=t+.72;break;}
+  case 'N':{ // Knight — classic horse head
+   const t=pedestal(g,P,.22,1.05);
+   add(g,G.ball,P.body,t+.12).scale.set(1.2,1,1.25);
+   const neck=add(g,G.cyl(.07,.12,.38,8),P.body,0);neck.position.set(0,t+.28,.12);neck.rotation.x=-.85;
+   const hd=add(g,G.box(.18,.18,.32),P.body,0);hd.position.set(0,t+.42,.28);hd.rotation.x=-.35;
+   add(g,G.box(.12,.09,.18),P.body,0).position.set(0,t+.34,.48);
+   const e1=add(g,G.cone(.05,.2,6),P.acc,0);e1.position.set(-.07,t+.58,.16);e1.rotation.x=-.1;
+   const e2=e1.clone();e2.position.x=.07;g.add(e2);
+   topY=t+.72;break;}
+  case 'c':{ // Camel — long S-neck, big hump, no pointed ears
+   const t=pedestal(g,P,.2,1.15);
+   add(g,G.ballL,P.body,t+.16).scale.set(1.15,1,1.3);
+   add(g,G.ball,P.glow,t+.32).position.set(0,t+.34,-.08); // hump
+   const neck=add(g,G.cyl(.05,.09,.55,8),P.body,0);neck.position.set(0,t+.4,.1);neck.rotation.x=-1.05;
+   const hd=add(g,G.box(.14,.12,.22),P.body,0);hd.position.set(0,t+.62,.36);
+   add(g,G.box(.1,.07,.14),P.body,0).position.set(0,t+.56,.5);
+   add(g,G.ballS,P.acc,t+.66).position.set(-.06,t+.66,.32);
+   add(g,G.ballS,P.acc,t+.66).position.set(.06,t+.66,.32);
+   topY=t+.8;break;}
+  case 'z':{ // Zebra — horse with bold stripes + bristly mane
+   const t=pedestal(g,P,.22,1.05);
+   add(g,G.ball,P.body,t+.12).scale.set(1.2,1,1.25);
+   const neck=add(g,G.cyl(.07,.12,.38,8),P.body,0);neck.position.set(0,t+.28,.12);neck.rotation.x=-.85;
+   const hd=add(g,G.box(.18,.18,.32),P.body,0);hd.position.set(0,t+.42,.28);hd.rotation.x=-.35;
+   add(g,G.box(.12,.09,.18),P.body,0).position.set(0,t+.34,.48);
+   const e1=add(g,G.cone(.05,.2,6),P.body,0);e1.position.set(-.07,t+.58,.16);
+   const e2=e1.clone();e2.position.x=.07;g.add(e2);
+   for(let i=0;i<5;i++){const r=add(g,G.box(.22,.035,.05),P.ink,0);r.position.set(0,t+.1+i*.1,.14+i*.04)}
+   for(let i=0;i<4;i++){const mn=add(g,G.box(.03,.1,.03),P.ink,0);mn.position.set(0,t+.5+i*.04,.16-i*.02)}
+   topY=t+.72;break;}
+  case 'n':{ // Nightrider — long ground-length cape, glowing eyes, taller
+   const t=pedestal(g,P,.26,1.05);
+   add(g,G.ball,P.body,t+.14).scale.set(1.15,1,1.2);
+   const neck=add(g,G.cyl(.07,.11,.44,8),P.body,0);neck.position.set(0,t+.32,.1);neck.rotation.x=-.8;
+   const hd=add(g,G.box(.18,.16,.3),P.body,0);hd.position.set(0,t+.5,.26);hd.rotation.x=-.3;
+   add(g,G.box(.12,.08,.16),P.body,0).position.set(0,t+.42,.44);
+   add(g,G.ballS,P.glow,t+.52).position.set(-.07,t+.54,.36);
+   add(g,G.ballS,P.glow,t+.52).position.set(.07,t+.54,.36);
+   const cp=add(g,new T.PlaneGeometry(.55,.7),mat(0x3949ab,{side:T.DoubleSide,transparent:true,opacity:.9,emissive:0x5c6bc0,emissiveIntensity:.25}),0);
+   cp.position.set(0,t+.2,-.22);cp.rotation.x=.2;
+   topY=t+.78;break;}
+  case 'C':{ // Lancer — compact horse + very long diagonal lance (unique spear line)
+   const t=pedestal(g,P,.2,1.0);
+   add(g,G.ball,P.body,t+.1).scale.set(1.1,1,1.15);
+   const neck=add(g,G.cyl(.06,.1,.3,8),P.body,0);neck.position.set(0,t+.24,.1);neck.rotation.x=-.8;
+   const hd=add(g,G.box(.15,.14,.26),P.body,0);hd.position.set(0,t+.36,.24);
+   const ln=add(g,G.cyl(.022,.022,1.15,6),P.glow,0);ln.position.set(.16,t+.5,.2);ln.rotation.x=-.7;
+   add(g,G.cone(.07,.18,6),P.glow,0).position.set(.16,t+.95,.55);
+   topY=t+1.05;break;}
+  case 'L':{ // Paladin — HUMANOID armored knight (not a horse), shield + cross
+   const t=pedestal(g,P,.18,1.1);
+   add(g,G.cyl(.16,.2,.28,10),P.body,t+.16); // torso
+   add(g,G.ball,P.body,t+.38);
+   add(g,G.cyl(.14,.16,.12,10),P.acc,t+.5); // helm
+   add(g,G.box(.05,.16,.05),P.glow,t+.58);
+   add(g,G.box(.16,.05,.05),P.glow,t+.54);
+   const sh=add(g,G.box(.08,.36,.28),P.glow,t+.22);sh.position.set(-.28,t+.22,.08);
+   topY=t+.7;break;}
+  case 'P':{ // Pawn — smallest classic ball
+   const t=pedestal(g,P,.22,.95);
+   add(g,G.ball,P.body,t+.12);
+   topY=t+.28;break;}
+  case 'Y':{ // Berolina — diamond/pyramid head, no sphere
+   const t=pedestal(g,P,.2,.95);
+   const d=add(g,G.box(.22,.22,.22),P.glow,t+.16);d.rotation.set(Math.PI/4,Math.PI/4,0);
+   add(g,G.cone(.12,.16,4),P.acc,t+.34);
+   topY=t+.46;break;}
+  case 'J':{ // Sergeant — crested helm, wider shoulders, taller than pawn
+   const t=pedestal(g,P,.28,1.15);
+   add(g,G.box(.36,.16,.28),P.body,t+.1);
+   add(g,G.cyl(.14,.16,.16,10),P.acc,t+.22);
+   const cr=add(g,G.box(.05,.2,.16),P.glow,t+.36);
+   topY=t+.5;break;}
+  case 'U':{ // Shieldbearer — huge forward shield hiding the body
+   const t=pedestal(g,P,.16,1.05);
+   add(g,G.ball,P.body,t+.1);
+   const sh=add(g,new T.CylinderGeometry(.28,.28,.06,14),P.glow,t+.2);sh.rotation.x=Math.PI/2;sh.position.set(0,t+.2,.22);
+   add(g,G.box(.04,.22,.04),P.acc,t+.2).position.set(0,t+.2,.26);
+   topY=t+.42;break;}
+  case 'Z':{ // Scout — slim, long visor cap brim forward, taller thin
+   const t=pedestal(g,P,.36,.7);
+   add(g,G.cyl(.09,.11,.2,10),P.body,t+.1);
+   add(g,G.ballS,P.body,t+.24);
+   add(g,G.cyl(.14,.16,.05,12),P.glow,t+.3);
+   const brim=add(g,G.box(.16,.03,.22),P.glow,t+.3);brim.position.set(0,t+.3,.16);
+   topY=t+.42;break;}
+  case 'I':{ // Runner — body leaning forward, elongated, teal stripe
+   const t=pedestal(g,P,.3,.7);
+   const bod=add(g,G.cyl(.08,.12,.4,10),P.body,t+.2);bod.rotation.x=-.45;bod.position.set(0,t+.22,.1);
+   add(g,G.ballS,P.body,t+.42).position.set(0,t+.42,.22);
+   add(g,G.box(.07,.36,.07),P.glow,t+.22).rotation.x=-.45;
+   topY=t+.58;break;}
+  case 'S':{ // Squire — little figure, sword and cape, capped head (not a ball-on-stick)
+   const t=pedestal(g,P,.2,1.0);
+   add(g,G.cyl(.11,.15,.22,10),P.body,t+.12);
+   add(g,G.cyl(.1,.12,.08,10),P.acc,t+.28); // cap
+   const sw=add(g,G.box(.04,.36,.04),P.glow,t+.24);sw.position.set(.2,t+.24,0);
+   add(g,G.box(.12,.03,.03),P.acc,t+.12).position.set(.2,t+.12,0);
+   const cp=add(g,new T.PlaneGeometry(.22,.28),P.acc,t+.1);cp.position.set(0,t+.1,-.16);cp.rotation.x=.2;cp.material.side=T.DoubleSide;
+   topY=t+.5;break;}
+  case 'H':{ // Bulwark — widest iron bunker, shortest, almost a block
+   const t=pedestal(g,P,.1,1.4);
+   add(g,G.box(.56,.32,.56),P.acc,t+.16);
+   add(g,G.box(.4,.1,.4),P.body,t+.36);
+   ring(t+.08,.22);
+   topY=t+.42;break;}
+  case 'V':{ // Vaulter — visible coil spring + leaping arc
+   const t=pedestal(g,P,.16,.9);
+   for(let i=0;i<4;i++){const sp=add(g,new T.TorusGeometry(.12,.03,6,12),P.glow,t+.08+i*.08);sp.rotation.x=Math.PI/2}
+   add(g,G.ball,P.body,t+.42);
+   const a=add(g,new T.TorusGeometry(.22,.025,6,14,Math.PI),P.acc,t+.55);a.rotation.x=Math.PI/2;a.rotation.z=Math.PI;
+   topY=t+.72;break;}
+  case 'W':{ // Keeper — giant key as the head
+   const t=pedestal(g,P,.28,1.0);
+   add(g,G.ball,P.body,t+.12);
+   const bow=add(g,new T.TorusGeometry(.14,.04,8,14),P.glow,t+.4);bow.rotation.x=Math.PI/2;
+   add(g,G.box(.06,.28,.06),P.glow,t+.22);
+   add(g,G.box(.14,.05,.05),P.glow,t+.16).position.set(.1,t+.16,0);
+   add(g,G.box(.1,.05,.05),P.glow,t+.1).position.set(.08,t+.1,0);
+   topY=t+.58;break;}
+  case 'F':{ // Frostcaller — cluster of ice shards, no round head
+   const t=pedestal(g,P,.2,.95);
+   const ice=P.glow;
+   const hs=[.42,.3,.36,.24,.38,.28];
+   for(let i=0;i<6;i++){const a=i*Math.PI/3,s=add(g,G.cone(.07,hs[i],5),ice,0);s.position.set(Math.cos(a)*.12,t+hs[i]/2,Math.sin(a)*.12);s.rotation.z=(i%2?-.15:.2)}
+   add(g,G.ballS,ice,t+.36);
+   topY=t+.55;break;}
+  case 'A':{ // Longbow — large C-shaped bow + nocked arrow
+   const t=pedestal(g,P,.22,.85);
+   add(g,G.ballS,P.body,t+.12);
+   const bow=add(g,new T.TorusGeometry(.32,.03,6,18,Math.PI),P.glow,t+.32);bow.rotation.y=Math.PI/2;
+   const st=add(g,G.cyl(.012,.012,.62,4),P.ink,t+.32);st.rotation.z=Math.PI/2;
+   const ar=add(g,G.cyl(.015,.015,.55,6),P.acc,t+.32);ar.position.z=.1;ar.rotation.x=-.15;
+   add(g,G.cone(.04,.1,5),P.glow,t+.32).position.set(0,t+.32,.4);
+   topY=t+.62;break;}
+  case 'G':{ // Wraith — tall wispy corkscrew, no solid foot
+   const W={body:mat(0x8e7cc3,{transparent:true,opacity:.42,emissive:0x4a3870,emissiveIntensity:.45,roughness:.15}),acc:mat(0xede7f6,{transparent:true,opacity:.7,emissive:0xb39ddb,emissiveIntensity:.55})};
+   add(g,new T.TorusGeometry(.18,.03,6,12),W.acc,.08).rotation.x=Math.PI/2;
+   add(g,G.cone(.16,.7,8),W.body,.48);
+   add(g,G.cone(.1,.3,8),W.acc,.95);
+   add(g,G.ballS,W.acc,1.12);
+   topY=1.25;break;}
+  case 'X':{ // Bombard — squat cannon, barrel at 45°, wheels
+   const t=pedestal(g,P,.1,1.3);
+   add(g,G.box(.4,.16,.36),P.body,t+.1);
+   const br=add(g,G.cyl(.11,.14,.55,10),P.acc,t+.22);br.rotation.x=-.95;br.position.set(0,t+.22,.16);
+   const w1=add(g,new T.TorusGeometry(.14,.04,8,12),P.ink,t+.12);w1.position.set(-.24,t+.12,0);w1.rotation.z=Math.PI/2;
+   const w2=w1.clone();w2.position.x=.24;g.add(w2);
+   add(g,G.ballS,P.glow,t+.36).position.set(0,t+.28,.4);
+   topY=t+.5;break;}
+  case 'D':{ // Dragon — wide spread wings, horns, tail
+   const t=pedestal(g,P,.2,1.15);
+   add(g,G.ballL,P.body,t+.18);
+   add(g,G.box(.16,.14,.3),P.body,t+.16).position.set(0,t+.16,.26);
+   const tail=add(g,G.cyl(.03,.08,.5,6),P.body,0);tail.position.set(0,t+.12,-.32);tail.rotation.x=-.7;
+   const mk=(side)=>{const w=add(g,new T.PlaneGeometry(.75,.48),mat(acc,{side:T.DoubleSide,transparent:true,opacity:.9,emissive:acc,emissiveIntensity:.25,roughness:.5}),0);w.position.set(side*.36,t+.36,.02);w.rotation.set(-.25,side*.55,side*.7);w.userData.wing=side};
    mk(-1);mk(1);
-   break;}
-  case 'q':{ // Oracle — large orb
-   top=pedestal(g,P, .34, .9);
-   add(g,G.cyl(.04,.04,.28,6),P.acc, top+.16);
-   add(g,G.ballL, mat(0x29b6f6,{emissive:0x29b6f6,emissiveIntensity:.6,transparent:true,opacity:.85,roughness:.15,metalness:.2}), top+.4);
-   add(g,G.tor,P.glow, top+.4);
-   break;}
-  case 's':{ // Seer — smaller orb, hood
-   top=pedestal(g,P, .28, .85);
-   add(g,G.cone(.18,.22,10),P.body, top+.16);
-   add(g,G.ball, mat(0x4fc3f7,{emissive:0x4fc3f7,emissiveIntensity:.5,transparent:true,opacity:.85,roughness:.2}), top+.22);
-   break;}
+   add(g,G.cone(.04,.2,5),P.glow,0).position.set(-.08,t+.36,.12);
+   add(g,G.cone(.04,.2,5),P.glow,0).position.set(.08,t+.36,.12);
+   topY=t+.62;break;}
+  case 'y':{ // Wyvern — swept-back wings, long barbed tail, slimmer
+   const t=pedestal(g,P,.16,.85);
+   add(g,G.ball,P.body,t+.12);
+   add(g,G.box(.1,.1,.26),P.body,t+.12).position.set(0,t+.12,.2);
+   const tail=add(g,G.cyl(.02,.05,.7,6),P.body,0);tail.position.set(0,t+.1,-.36);tail.rotation.x=-.35;
+   add(g,G.cone(.06,.16,5),P.glow,0).position.set(0,t-.02,-.7);
+   const mk=(side)=>{const w=add(g,new T.PlaneGeometry(.55,.7),mat(acc,{side:T.DoubleSide,transparent:true,opacity:.85,emissive:acc,emissiveIntensity:.15,roughness:.5}),0);w.position.set(side*.2,t+.28,-.08);w.rotation.set(-.05,side*1.05,side*1.05);w.userData.wing=side};
+   mk(-1);mk(1);
+   topY=t+.58;break;}
+  case 'q':{ // Oracle — huge glowing orb as the main body
+   const t=pedestal(g,P,.22,.85);
+   add(g,G.cyl(.03,.03,.2,6),P.acc,t+.12);
+   add(g,new T.SphereGeometry(.28,14,12),mat(0x29b6f6,{emissive:0x29b6f6,emissiveIntensity:.75,transparent:true,opacity:.85,roughness:.12,metalness:.2}),t+.42);
+   const halo=add(g,new T.TorusGeometry(.32,.03,8,18),P.glow,t+.42);halo.rotation.x=Math.PI/2;
+   topY=t+.75;break;}
+  case 's':{ // Seer — hooded smaller orb, no staff, crouched
+   const t=pedestal(g,P,.16,.9);
+   add(g,G.cone(.22,.28,10),P.body,t+.24);
+   add(g,new T.SphereGeometry(.16,12,10),mat(0x81d4fa,{emissive:0x4fc3f7,emissiveIntensity:.65,transparent:true,opacity:.9,roughness:.18}),t+.16);
+   topY=t+.42;break;}
   default:{
-   top=pedestal(g,P, .3, 1);
-   add(g,G.ball,P.body, top+.12);
+   const t=pedestal(g,P,.3,1);add(g,G.ball,P.body,t+.12);topY=t+.3;
   }
  }
  g.traverse(o=>{if(o.isMesh){o.castShadow=o.receiveShadow=!reduced}});
+ addBadge(g,type,acc,topY);
+ g.userData.topY=topY;
  return g;
 }
+
 
 function sqPos(i){ // x along file, z along rank (r=7 / rank 1 at +z)
  const r=i>>3,c=i&7;
@@ -1037,7 +1180,7 @@ function tick(now){
  // pulses
  markG.children.forEach(c=>{if(c.userData.pulse){const s=1+Math.sin(now*0.008)*.12;c.scale.set(s,s,s);animating=true}});
  // wing idle
- if(!reduced)pieceG.children.forEach(p=>{p.children.forEach(ch=>{if(ch.userData.wing){ch.rotation.z=ch.userData.wing*(.55+Math.sin(now*0.004)*.2);animating=true}})});
+ pieceG.children.forEach(p=>{p.children.forEach(ch=>{if(ch.userData.wing&&!reduced){ch.rotation.z=ch.userData.wing*(.55+Math.sin(now*0.004)*.2);animating=true}if(ch.userData.billboard&&camera){ch.quaternion.copy(camera.quaternion);animating=true}})});
  // camera
  let shx=0,shy=0;
  if(shake>0){shake=Math.max(0,shake-dt);shx=(Math.random()-.5)*shake*.25;shy=(Math.random()-.5)*shake*.2;animating=true}
@@ -1048,42 +1191,58 @@ function tick(now){
  }
 }
 
+const TAP=14;
+let pinch0=0,holdT=null,holdFired=false;
+function distT(t){const a=t[0],b=t[1];return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)}
 function onPtrDown(e){
  if(!renderer)return;
- if(e.touches&&e.touches.length===2){pinch0=distT(e.touches);e.preventDefault();return}
+ if(e.touches&&e.touches.length===2){pinch0=distT(e.touches);clearTimeout(holdT);e.preventDefault();return}
  const ev=e.touches?e.touches[0]:e;
- drag=true;didMove=false;px=ev.clientX;py=ev.clientY;pid=ev.pointerId;
+ drag=true;didMove=false;holdFired=false;px=ev.clientX;py=ev.clientY;pid=ev.pointerId;
  try{e.target.setPointerCapture&&e.target.setPointerCapture(pid)}catch(_){}
+ clearTimeout(holdT);
+ holdT=setTimeout(()=>{if(drag&&!didMove){holdFired=true;showHoldTip(px,py)}},450);
 }
-function distT(t){const a=t[0],b=t[1];return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)}
-let pinch0=0;
 function onPtrMove(e){
  if(e.touches&&e.touches.length===2){
-  const d=distT(e.touches);if(pinch0){view.d=clamp(view.d*(pinch0/d),10,17);pinch0=d;applyView()}e.preventDefault();didMove=true;return;
+  const d=distT(e.touches);if(pinch0){view.d=clamp(view.d*(pinch0/d),10,17);pinch0=d;applyView()}e.preventDefault();didMove=true;clearTimeout(holdT);return;
  }
  if(!drag)return;
  const ev=e.touches?e.touches[0]:e;
  const dx=ev.clientX-px, dy=ev.clientY-py;
- if(Math.hypot(dx,dy)>7)didMove=true; // drag never rotates the camera
+ if(Math.hypot(dx,dy)>TAP){
+  didMove=true;clearTimeout(holdT);hideHoldTip();
+  if(!orbitLock){view.th-=dx*0.007;view.ph=clamp(view.ph+dy*0.005,0.40,1.22);px=ev.clientX;py=ev.clientY;applyView()}
+ }
 }
 function onPtrUp(e){
  if(e.touches&&e.touches.length){if(e.touches.length<2)pinch0=0;return}
  const ev=e.changedTouches?e.changedTouches[0]:e;
- const was=didMove;drag=false;didMove=false;pinch0=0;
- if(!was)pick(ev.clientX, ev.clientY);
+ const was=didMove,held=holdFired;drag=false;didMove=false;pinch0=0;holdFired=false;clearTimeout(holdT);
+ if(!was&&!held)pick(ev.clientX, ev.clientY);
+ setTimeout(hideHoldTip,1600);
 }
 function onWheel(e){e.preventDefault();view.d=clamp(view.d+e.deltaY*0.01,10,17);applyView()}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 
-const ray=()=>new T.Raycaster();
-function pick(cx,cy){
- if(!renderer||!onClick)return;
+function tipEl(){if(!host)return null;let t=host.querySelector('.pcTip');if(!t){t=document.createElement('div');t.className='pcTip hide';host.appendChild(t)}return t}
+function showHoldTip(cx,cy){
+ const i=sqAt(cx,cy);if(i==null)return;const p=pins[i];if(!p)return;
+ const t=tipEl();if(!t)return;const rec=host.getBoundingClientRect();
+ t.textContent=(PNAME[p.userData.type]||p.userData.type);t.classList.remove('hide');
+ t.style.left=(cx-rec.left)+'px';t.style.top=(cy-rec.top)+'px';
+}
+function hideHoldTip(){const t=host&&host.querySelector('.pcTip');if(t)t.classList.add('hide')}
+function sqAt(cx,cy){
+ if(!renderer)return null;
  const rec=renderer.domElement.getBoundingClientRect();
  const ndc=new T.Vector2(((cx-rec.left)/rec.width)*2-1, -((cy-rec.top)/rec.height)*2+1);
- const R=ray();R.setFromCamera(ndc,camera);
+ const R=new T.Raycaster();R.setFromCamera(ndc,camera);
  const hits=R.intersectObjects(tiles,false);
- if(hits.length){const i=hits[0].object.userData.sq;onClick(i)}
+ return hits.length?hits[0].object.userData.sq:null;
 }
+const ray=()=>new T.Raycaster();
+function pick(cx,cy){if(!onClick)return;const i=sqAt(cx,cy);if(i!=null)onClick(i)}
 
 function bind(el){
  const opt={passive:false};
@@ -1121,7 +1280,7 @@ api.mount=function(el, opts){
  T=G.THREE||window.THREE;
  if(!T)throw new Error('Three.js missing');
  host=el;onClick=opts.onClick||onClick;onFallback=opts.onFallback||onFallback;
- reduced=!!opts.reduced;theme=opts.theme||theme;flipped=!!opts.flipped;coordsOn=opts.coords!==false;
+ reduced=!!opts.reduced;theme=opts.theme||theme;flipped=!!opts.flipped;coordsOn=opts.coords!==false;if(opts.orbitLock!=null)orbitLock=!!opts.orbitLock;if(opts.badges!=null)badgesOn=!!opts.badges;
  if(!renderer){
   scene=new T.Scene();scene.background=new T.Color(0x14171f);
   camera=new T.PerspectiveCamera(40,1,0.1,80);
@@ -1184,6 +1343,10 @@ function placePiecesRebuild(){
  placePieces(bd,{keep:false});
 }
 api.resetView=function(){view={th:vDef.th, ph:vDef.ph, d:vDef.d};applyView()};
+api.setOrbitLock=function(v){orbitLock=!!v};
+api.orbitLocked=function(){return !!orbitLock};
+api.setBadges=function(v){badgesOn=!!v;dirty=true};
+
 api.resize=resize;
 api.tap=function(i){if(onClick)onClick(i)};
 api.setClick=function(fn){onClick=fn};
@@ -1209,6 +1372,34 @@ api.demo=function(spec){
  animateMove({m,dead,pre:{bd:preBd},side:spec.side||'w'}, postBd);
  return lastFx;
 };
+const LINEUP=['K','k','o','h','Q','E','O','m','R','t','r','w','B','d','e','p','N','c','z','n','C','L','V','W','P','Y','J','U','Z','I','S','H','F','A','G','X','D','y','q','s'];
+let _savedView=null,_lineupOn=false;
+api.showLineup=function(){
+ if(!renderer)return null;
+ _lineupOn=true;_savedView={th:view.th,ph:view.ph,d:view.d};
+ clearGroup(pieceG);pins={};clearGroup(markG);
+ const accOfP=t=>ACCENT[t]||0xc9a227;
+ for(let i=0;i<LINEUP.length;i++){
+  const t=LINEUP[i],col=i%8,row=(i/8)|0;
+  const m=pieceMesh(t,'w',accOfP(t));
+  // sit on ranks 2–6 so every model stays inside the frame
+  m.position.set(col-3.5,0,row-2.0);
+  namePlate(m,t,accOfP(t));
+  pieceG.add(m);
+ }
+ view.th=0;view.ph=0.55;view.d=15.2;applyView();
+ if(camera){camera.lookAt(0,0.1,0.2)}
+ renderer.render(scene,camera);
+ return {n:LINEUP.length,order:LINEUP.slice(),names:LINEUP.map(t=>PNAME[t])};
+};
+api.hideLineup=function(){
+ _lineupOn=false;clearGroup(pieceG);pins={};
+ if(_savedView){view={th:_savedView.th,ph:_savedView.ph,d:_savedView.d};_savedView=null}
+ else setDefaultView();
+ dirty=true;
+};
+api.lineupOn=function(){return _lineupOn};
 Object.defineProperty(api,'reduced',{get:()=>reduced});
+
 Object.defineProperty(api,'FXMAP',{get:()=>FXMAP});
 })(typeof globalThis!=='undefined'?globalThis:this);

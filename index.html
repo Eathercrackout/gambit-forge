@@ -137,10 +137,14 @@ body.tournament{--light:#eeeed2;--dark:#769656;--frame:linear-gradient(135deg,#4
 #pzStage .gboard{width:100%;max-width:none;margin:0}
 #pzStage.view3d #pzBoard{visibility:hidden;pointer-events:none;position:absolute;inset:0}
 #gf3d{position:absolute;inset:0;width:100%;height:100%;z-index:3;touch-action:none;display:block;border-radius:inherit}
-#btn3d{min-width:44px;height:44px;border-radius:22px;background:rgba(12,14,20,.88);color:#fff;border:2px solid rgba(255,255,255,.7);font-weight:700;padding:0 12px}
-#btn3d.on{border-color:var(--acc);color:var(--acc)}
-@media (max-width:400px){#btn3d .l3{display:none}}
-@media (orientation:landscape) and (max-height:560px){#btn3d{flex-direction:column;height:auto;padding:8px 4px;font-size:11px;border-radius:14px}}
+#btn3d,#btnOrbit,#btn3dReset{min-width:44px;height:44px;border-radius:22px;background:rgba(12,14,20,.88);color:#fff;border:2px solid rgba(255,255,255,.7);font-weight:700;padding:0 12px}
+#btn3d.on,#btnOrbit.on{border-color:var(--acc);color:var(--acc)}
+#btn3dReset{position:absolute;right:8px;bottom:8px;z-index:8;width:44px;height:44px;padding:0;display:none}
+#board.view3d #btn3dReset,#pzStage.view3d #btn3dReset{display:block}
+.pcTip{position:absolute;z-index:9;background:rgba(12,14,20,.92);color:#fff;padding:5px 10px;border-radius:10px;font-weight:800;font-size:13px;pointer-events:none;transform:translate(-50%,-130%);border:1px solid var(--acc);white-space:nowrap}
+.pcTip.hide{display:none}
+@media (max-width:400px){#btn3d .l3,#btnOrbit .l3{display:none}}
+@media (orientation:landscape) and (max-height:560px){#btn3d,#btnOrbit{flex-direction:column;height:auto;padding:8px 4px;font-size:11px;border-radius:14px}#btn3dReset{width:36px;height:36px;min-width:36px}}
 #promoPick{z-index:40}
 body.mode3d .frame #board{background:#0b0d12}
 
@@ -355,6 +359,8 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
  <h3>Board theme</h3><div class="themeGrid"></div>
  <div class="optRow"><span>🎲 3D board</span><button class="tgl" id="o3d"></button></div>
  <div class="optRow"><span>🪶 Reduced 3D effects</span><button class="tgl" id="oFxLow"></button></div>
+ <div class="optRow"><span>🔒 Lock 3D rotation</span><button class="tgl" id="oOrbit"></button></div>
+ <div class="optRow"><span>🏷️ Piece badges</span><button class="tgl" id="oBadges"></button></div>
  <div class="optRow"><span>✨ Animations</span><button class="tgl" id="oAnim"></button></div>
  <div class="optRow"><span>🔊 Sound</span><button class="tgl" id="oSound"></button></div>
  <div class="optRow"><span>🔤 Board coordinates</span><button class="tgl" id="oCoords"></button></div>
@@ -383,8 +389,8 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
 <section id="aivai" class="view hide"><div class="card"><div class="vhead"><button class="back" data-go="home">← Home</button><h2>AI vs AI</h2></div><div id="avaBody"></div></div></section>
 <div id="avaBar" class="hide" style="position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:90;background:var(--card);padding:8px 10px;border-radius:12px;display:flex;gap:8px;align-items:center;box-shadow:0 4px 16px #0008;flex-wrap:wrap;justify-content:center"><button id="avaPause">⏸ Pause</button><label class="small">Speed <select id="avaSpeed"><option value="1500">Slow</option><option value="600" selected>Normal</option><option value="150">Fast</option><option value="0">Max</option></select></label><button id="avaExit">✕ Exit</button><span id="avaRes" style="font-weight:700"></span></div>
 <section id="game" class="view hide">
- <div class="gbar"><span id="gStatus" aria-live="polite"></span><button id="hintBtn" aria-label="Hint" title="Hint: tap once for a nudge, again to show the move, again to hide"><span class="gi">💡</span><span class="hl2">Hint</span></button><button id="btn3d" aria-label="Toggle 2D or 3D board" title="Toggle 2D/3D board"><span class="gi">🎲</span><span class="l3">3D</span></button><button id="gear" aria-label="Open game menu" title="Game menu"><span class="gi">⚙</span><span class="gl2">Menu</span></button></div>
- <div class="frame"><div id="board"><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="hintL"></div><div id="fx"></div></div></div>
+ <div class="gbar"><span id="gStatus" aria-live="polite"></span><button id="hintBtn" aria-label="Hint" title="Hint: tap once for a nudge, again to show the move, again to hide"><span class="gi">💡</span><span class="hl2">Hint</span></button><button id="btn3d" aria-label="Toggle 2D or 3D board" title="Toggle 2D/3D board"><span class="gi">🎲</span><span class="l3">3D</span></button><button id="btnOrbit" aria-label="Lock or unlock board rotation" title="Lock board rotation"><span class="gi" id="orbitIcon">🔓</span><span class="l3">Turn</span></button><button id="gear" aria-label="Open game menu" title="Game menu"><span class="gi">⚙</span><span class="gl2">Menu</span></button></div>
+ <div class="frame"><div id="board"><button id="btn3dReset" type="button" title="Reset 3D view" aria-label="Reset 3D view">↺</button><div id="squares"></div><div id="ambient"></div><div id="pieces"></div><div id="hintL"></div><div id="fx"></div></div></div>
  <div id="coachRow"><div id="coachBubble" aria-live="polite"></div></div>
  <div id="gBackdrop"></div>
  <aside class="side" id="side">
@@ -393,7 +399,7 @@ body.v-game #game{--bs:min(calc(100vw - var(--sl) - var(--sr) - 16px),calc(100dv
   <div id="status"></div>
   <div class="player" id="pBot"></div>
   <div class="btns"><button id="undo">↶ Undo</button><button id="restart">⟲ Restart</button><button id="flip">⇅ Flip</button><button id="tobuild">⚒ Army Builder</button><button data-go="home">⌂ Home</button></div>
-  <div class="btns dOnly"><button id="dAnim"></button><button id="dSound"></button><button id="dCoords"></button><button id="d3d"></button><button id="dFxLow"></button><button id="dHow">📖 How to Play</button><button class="openCoaches">🎓 Coach: <span class="coachName"></span></button><button id="dVoice"></button></div>
+  <div class="btns dOnly"><button id="dAnim"></button><button id="dSound"></button><button id="dCoords"></button><button id="d3d"></button><button id="dFxLow"></button><button id="dOrbit"></button><button id="dHow">📖 How to Play</button><button class="openCoaches">🎓 Coach: <span class="coachName"></span></button><button id="dVoice"></button></div>
   <details class="card" id="themeBox"><summary style="cursor:pointer;font-weight:700">🎨 Board theme: <span class="themeName"></span></summary><div class="themeGrid"></div></details>
   <div class="card" id="info"></div>
   <div id="log"></div>
@@ -972,7 +978,7 @@ const AMB={
 };
 const RM=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 let anim=!RM;try{const v=localStorage.getItem('gf_anim');if(v!==null)anim=v==='1'}catch(e){}
-let want3d=true,fxLow=false;try{const v=localStorage.getItem('gf_view');if(v==='2d')want3d=false;if(localStorage.getItem('gf_fxlow')==='1')fxLow=true}catch(e){}
+let want3d=true,fxLow=false,orbitLock=false,badgesOn=true;try{const v=localStorage.getItem('gf_view');if(v==='2d')want3d=false;if(localStorage.getItem('gf_fxlow')==='1')fxLow=true;if(localStorage.getItem('gf_orbitlock')==='1')orbitLock=true;if(localStorage.getItem('gf_badges')==='0')badgesOn=false}catch(e){}
 function setAnim(on,user){anim=on;document.body.classList.toggle('noanim',!on);document.body.classList.toggle('animforce',on&&user===true||(on&&RM&&(()=>{try{return localStorage.getItem('gf_anim')==='1'}catch(e){return false}})()));
  $('animBtn').textContent=on?'✨ Animations: On':'✨ Animations: Off';syncOpts();if(user===true)try{localStorage.setItem('gf_anim',on?'1':'0')}catch(e){}if(window.GF3D&&GF3D.active())GF3D.setReduced(fxLow||!anim)}
 $('animBtn').onclick=()=>setAnim(!anim,true);setAnim(anim);
@@ -1117,7 +1123,7 @@ function pause3d(){document.body.classList.remove('mode3d');if(window.GF3D&&GF3D
 function bootView(host){if(!host)return Promise.resolve(false);if(!prefer3d()){pause3d();sync3dBtns();return Promise.resolve(false)}
  const run=async()=>{try{show3dWait(host,true);const r=await Promise.race([load3d().then(()=>"ok"),new Promise(res=>setTimeout(()=>res("timeout"),10000))]);if(r!=="ok"||!prefer3d()||!host.isConnected){show3dWait(host,false);if(r==="timeout")console.warn("3D load timed out");pause3d();return false}
   GF3D.setFallback(()=>{try{sessionStorage.setItem('gf_3dfail','1')}catch(e){}setWant3d(false,true)});
-  GF3D.mount(host,{reduced:fxLow||!anim,theme,flipped,coords,onClick:host.id==='pzStage'?i=>pzClick(i):i=>click(i)});
+  GF3D.mount(host,{reduced:fxLow||!anim,theme,flipped,coords,orbitLock,badges:badgesOn,onClick:host.id==='pzStage'?i=>pzClick(i):i=>click(i)});
   document.body.classList.add('mode3d');show3dWait(host,false);sync3dBtns();return true}
  catch(e){console.warn('3D unavailable',e);show3dWait(host,false);pause3d();sync3dBtns();return false}};
  _boot3d=run();return _boot3d}
@@ -1130,8 +1136,12 @@ function setWant3d(on,auto){want3d=!!on;try{if(!auto)localStorage.setItem('gf_vi
  if(v==='game'){if(on)bootView($('board')).then(()=>S&&render());else{pause3d();S&&render()}}
  else if(v==='pzplay'){if(on)bootView($('pzStage')).then(()=>PZ_&&drawPz());else{pause3d();PZ_&&drawPz()}}}
 function setFxLow(on){fxLow=!!on;try{localStorage.setItem('gf_fxlow',on?'1':'0')}catch(e){}syncOpts();if(window.GF3D&&GF3D.active())GF3D.setReduced(fxLow||!anim)}
-function sync3dBtns(){const b=$('btn3d');if(b){const on=want3d&&prefer3d();b.classList.toggle('on',!!on);const l=b.querySelector('.l3');if(l)l.textContent=on?'3D':'2D';b.title=on?'Switch to 2D board':'Switch to 3D board'}}
-window.GFUI_3D={get want3d(){return want3d},get fxLow(){return fxLow},get S(){return S},get sel(){return sel},setWant3d,setFxLow,prefer3d,bootView};
+function setOrbitLock(on){orbitLock=!!on;try{localStorage.setItem('gf_orbitlock',on?'1':'0')}catch(e){}syncOpts();sync3dBtns();if(window.GF3D&&GF3D.active())GF3D.setOrbitLock(on)}
+function setBadges(on){badgesOn=!!on;try{localStorage.setItem('gf_badges',on?'1':'0')}catch(e){}syncOpts();if(window.GF3D&&GF3D.active()){GF3D.setBadges(on);S&&sync3d(S)}}
+function sync3dBtns(){const b=$('btn3d');if(b){const on=want3d&&prefer3d();b.classList.toggle('on',!!on);const l=b.querySelector('.l3');if(l)l.textContent=on?'3D':'2D';b.title=on?'Switch to 2D board':'Switch to 3D board'}
+ const o=$('btnOrbit');if(o){o.classList.toggle('on',!!orbitLock);const ic=$('orbitIcon');if(ic)ic.textContent=orbitLock?'🔒':'🔓';const l=o.querySelector('.l3');if(l)l.textContent=orbitLock?'Lock':'Turn';o.title=orbitLock?'Unlock board rotation':'Lock board rotation'}
+ const r=$('btn3dReset');if(r)r.style.display=(want3d&&prefer3d()&&(window.GF3D&&GF3D.active()))?'block':'none'}
+window.GFUI_3D={get want3d(){return want3d},get fxLow(){return fxLow},get orbitLock(){return orbitLock},get badgesOn(){return badgesOn},get S(){return S},get sel(){return sel},setWant3d,setFxLow,setOrbitLock,setBadges,prefer3d,bootView};
 
 function show(v){document.body.classList.remove('drawer');if(v==='howto'){const bk=$('howto').querySelector('.back');bk.dataset.go=curView==='game'?'game':'options';bk.textContent=curView==='game'?'← Back to game':'← Back'}
  if(curView==='game'&&v!=='game'&&v!=='howto'&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});curView=v;VIEWS.forEach(x=>$(x).classList.toggle('hide',x!==v));VIEWS.forEach(x=>document.body.classList.toggle('v-'+x,x===v));
@@ -1144,10 +1154,10 @@ let coords=true;try{coords=localStorage.getItem('gf_coords')!=='0'}catch(e){}
 function setCoords(on){coords=on;document.body.classList.toggle('nocoords',!on);try{localStorage.setItem('gf_coords',on?'1':'0')}catch(e){}syncOpts();if(window.GF3D&&GF3D.active())GF3D.setCoords(on)}
 function syncOpts(){try{syncOpts2();syncD()}catch(e){}}
 function syncOpts2(){const t=(id,on,a,b)=>{const e=$(id);if(e){e.textContent=on?a:b;e.classList.toggle('on',on)}};
- t('oAnim',anim,'On','Off');t('oSound',!muted,'On','Off');t('oCoords',coords,'On','Off');t('o3d',want3d,'On','Off');t('oFxLow',fxLow,'On','Off');const s=$('oAI');if(s)s.value=lsGet('gf_ailevel','inter')}
+ t('oAnim',anim,'On','Off');t('oSound',!muted,'On','Off');t('oCoords',coords,'On','Off');t('o3d',want3d,'On','Off');t('oFxLow',fxLow,'On','Off');t('oOrbit',orbitLock,'On','Off');t('oBadges',badgesOn,'On','Off');const s=$('oAI');if(s)s.value=lsGet('gf_ailevel','inter')}
 $('oAI').innerHTML=LV.map(l=>`<option value="${l.id}">${l.name} (~${l.elo} Elo)</option>`).join('');
 $('oAI').onchange=e=>{try{localStorage.setItem('gf_ailevel',e.target.value)}catch(_){}players.b=e.target.value};
-$('oAnim').onclick=()=>setAnim(!anim,true);$('oSound').onclick=()=>$('mute').click();$('oCoords').onclick=()=>setCoords(!coords);$('o3d').onclick=()=>setWant3d(!want3d);$('oFxLow').onclick=()=>setFxLow(!fxLow);$('oHow').onclick=()=>show('howto');
+$('oAnim').onclick=()=>setAnim(!anim,true);$('oSound').onclick=()=>$('mute').click();$('oCoords').onclick=()=>setCoords(!coords);$('o3d').onclick=()=>setWant3d(!want3d);$('oFxLow').onclick=()=>setFxLow(!fxLow);$('oOrbit').onclick=()=>setOrbitLock(!orbitLock);$('oBadges').onclick=()=>setBadges(!badgesOn);$('oHow').onclick=()=>show('howto');
 $('hStart').onclick=()=>{actx();players.w='human';players.b=lsGet('gf_ailevel','inter');show('builder')};
 $('hGuide').onclick=()=>show('guide');$('hOpts').onclick=()=>show('options');
 $('homeBoard').innerHTML=Array.from({length:64},(_,i)=>`<div class="sq ${((i>>3)+(i&7))%2?'d':'l'}"></div>`).join('');
@@ -1242,10 +1252,10 @@ function gStat(){const g=$('gStatus');if(!g||!S)return;const chk=!S.over&&E.inCh
 const openD=o=>{document.body.classList.toggle('drawer',o);if(o)$('gClose').focus()};
 $('gear').onclick=()=>openD(true);$('gClose').onclick=()=>openD(false);$('gBackdrop').onclick=()=>openD(false);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')openD(false)});
-$('dAnim').onclick=()=>setAnim(!anim,true);$('dSound').onclick=()=>$('mute').click();$('dCoords').onclick=()=>setCoords(!coords);$('d3d').onclick=()=>setWant3d(!want3d);$('dFxLow').onclick=()=>setFxLow(!fxLow);
+$('dAnim').onclick=()=>setAnim(!anim,true);$('dSound').onclick=()=>$('mute').click();$('dCoords').onclick=()=>setCoords(!coords);$('d3d').onclick=()=>setWant3d(!want3d);$('dFxLow').onclick=()=>setFxLow(!fxLow);$('dOrbit').onclick=()=>setOrbitLock(!orbitLock);
 $('dHow').onclick=()=>{openD(false);show('howto')};
 ['undo','restart','flip'].forEach(id=>$(id).addEventListener('click',()=>openD(false)));
-function syncD(){const t=(id,on,lbl)=>{const e=$(id);if(e){e.textContent=lbl+(on?': On':': Off');e.classList.toggle('on',on)}};t('dAnim',anim,'✨ Anim');t('dSound',!muted,'🔊 Sound');t('dCoords',coords,'🔤 Coords');t('d3d',want3d,'🎲 3D');t('dFxLow',fxLow,'🪶 Low FX')}
+function syncD(){const t=(id,on,lbl)=>{const e=$(id);if(e){e.textContent=lbl+(on?': On':': Off');e.classList.toggle('on',on)}};t('dAnim',anim,'✨ Anim');t('dSound',!muted,'🔊 Sound');t('dCoords',coords,'🔤 Coords');t('d3d',want3d,'🎲 3D');t('dFxLow',fxLow,'🪶 Low FX');t('dOrbit',orbitLock,orbitLock?'🔒 Locked':'🔓 Rotate')}
 function tryFS(){try{const st=matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches;
  if(!st&&document.fullscreenEnabled&&!document.fullscreenElement&&matchMedia('(pointer:coarse)').matches)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}}
 // ================= COACHES =================
@@ -1457,7 +1467,7 @@ function precacheCoach(id){if(!AUD[id]||!voiceOn||muted)return;const ks=[];for(c
  let i=0;const next=()=>{if(i>=ks.length||coachId!==id)return;getClip(ks[i++]).catch(()=>{}).finally(()=>setTimeout(next,60))};next()}
 
 window.GFUI.show=show;window.GFUI.openPiece=openPiece;
-$('btn3d').onclick=()=>setWant3d(!want3d);setCoords(coords);show('home');
+$('btn3d').onclick=()=>setWant3d(!want3d);$('btnOrbit').onclick=()=>setOrbitLock(!orbitLock);$('btn3dReset').onclick=()=>{if(window.GF3D)GF3D.resetView()};setCoords(coords);show('home');
 })();
 </script>
 <script>/*gf-sw*/if("serviceWorker" in navigator&&location.protocol!=="file:"){
