@@ -7,7 +7,7 @@ G.GF3D=api;
 let T, scene, camera, renderer, root, boardG, pieceG, markG, fxG, rimG, labG;
 let host=null, raf=0, reduced=false, coordsOn=true, flipped=false, theme='wood';
 let onClick=null, onFallback=null, tweens=[], parts=[], shake=0, dirty=true, running=false;
-let view={th:0, ph:0.95, d:11.5}, vDef={th:0, ph:0.95, d:11.5};
+let view={th:0, ph:1.02, d:13.6}, vDef={th:0, ph:1.02, d:13.6};
 let drag=false, didMove=false, px=0, py=0, pid=null, pins={}, tiles=[], lastHint=null;
 let lights={}, mats={}, geos=null, pieceCache={}, labels=[], fpsWin=[], failN=0, tPrev=0;
 let lowHint=false, mountedAt=0;
@@ -108,7 +108,7 @@ function pieceMesh(type, color, accent){
    top=pedestal(g,P, .42, 1.15);
    add(g,G.box(.36,.22,.36),P.body, top+.1);
    add(g,G.cone(.18,.22,8),P.acc, top+.28);
-   for(let i=0;i<6;i++){const s=add(g,G.coneS,P.acc, top+.22);s.position.set(Math.cos(i)* .2, top+.22, Math.sin(i)*.2);s.rotation.z=i?0.5:-.5}
+   for(let i=0;i<6;i++){const s=add(g,G.coneS,P.acc, top+.22);s.position.set(Math.cos(i*Math.PI/3)*.2, top+.22, Math.sin(i*Math.PI/3)*.2);s.rotation.z=i?0.5:-.5}
    break;}
   case 'o':{ // Monarch — ornate crown
    top=pedestal(g,P, .58, 1.1);
@@ -205,17 +205,15 @@ function pieceMesh(type, color, accent){
    break;}
   case 'N': case 'c': case 'z': case 'n': case 'C': case 'L':{
    const isC=type==='c', isZ=type==='z', isNR=type==='n', isL=type==='C', isP=type==='L';
-   top=pedestal(g,P, isC?.28:.24, isC?1.1:1);
-   // neck
-   const neckH=isC?.42:.32, neck=add(g,G.cyl(isC?.07:.08, .12, neckH, 8),P.body, top+neckH/2);
-   neck.position.set(0, top+neckH/2, .04); neck.rotation.x=-.45;
-   // head
-   const hd=add(g,G.box(isC?.16:.18, isC?.16:.2, isC?.32:.28),P.body, 0);
-   hd.position.set(0, top+neckH+.06, .16);
-   const sn=add(g,G.box(.12,.1,.16),P.body,0);sn.position.set(0, top+neckH+.02, .34);
-   // ears
-   const e1=add(g,G.coneS,P.body,0);e1.position.set(-.08, top+neckH+.18, .08);e1.rotation.z=.4;
-   const e2=e1.clone();e2.position.x=.08;e2.rotation.z=-.4;g.add(e2);
+   top=pedestal(g,P, isC?.26:.22, isC?1.15:1);
+   add(g,G.ball,P.body, top+.12).scale.set(1.15,1,1.2);
+   const neckH=isC?.44:.36, neck=add(g,G.cyl(isC?.06:.07, .11, neckH, 8),P.body, 0);
+   neck.position.set(0, top+neckH*.45, .1); neck.rotation.x=-0.85;
+   const hd=add(g,G.box(isC?.15:.17, isC?.14:.18, isC?.34:.30),P.body, 0);
+   hd.position.set(0, top+neckH+.02, .26); hd.rotation.x=-0.35;
+   const sn=add(g,G.box(.11,.08,.18),P.body,0);sn.position.set(0, top+neckH-.04, .46);
+   const e1=add(g,G.cone(.05,.18,6),P.body,0);e1.position.set(-.07, top+neckH+.18, .16);e1.rotation.z=.25;e1.rotation.x=-.15;
+   const e2=e1.clone();e2.position.x=.07;e2.rotation.z=-.25;g.add(e2);
    if(isZ){ // zebra ridges
     for(let i=0;i<3;i++){const r=add(g,G.box(.2,.03,.04),P.ink,0);r.position.set(0, top+.12+i*.08, .12)}
    }
@@ -357,7 +355,7 @@ function applyView(){
 
 function setDefaultView(){
  view.th=flipped?Math.PI:0;
- view.ph=0.95; view.d=11.5;
+ view.ph=1.02; view.d=13.6;
  vDef={th:view.th, ph:view.ph, d:view.d};
  applyView();
 }
@@ -415,8 +413,8 @@ function buildLabels(){
  const files='abcdefgh', ranks='87654321';
  for(let i=0;i<8;i++){
   const f=makeLabel(files[i],col), r=makeLabel(ranks[i],col);
-  f.position.set(i-3.5, 0.22, 4.55); f.rotation.x=-Math.PI/2;
-  r.position.set(-4.55, 0.22, i-3.5); r.rotation.x=-Math.PI/2;
+  f.position.set(i-3.5, 0.30, 4.48); f.rotation.x=-Math.PI/2;
+  r.position.set(-4.48, 0.30, i-3.5); r.rotation.x=-Math.PI/2;
   labG.add(f,r);
  }
 }
@@ -746,8 +744,8 @@ api.mount=function(el, opts){
  host=el;onClick=opts.onClick||onClick;onFallback=opts.onFallback||onFallback;
  reduced=!!opts.reduced;theme=opts.theme||theme;flipped=!!opts.flipped;coordsOn=opts.coords!==false;
  if(!renderer){
-  scene=new T.Scene();
-  camera=new T.PerspectiveCamera(42,1,0.1,80);
+  scene=new T.Scene();scene.background=new T.Color(0x14171f);
+  camera=new T.PerspectiveCamera(40,1,0.1,80);
   renderer=new T.WebGLRenderer({antialias:!reduced,alpha:false,powerPreference:'high-performance'});
   renderer.shadowMap.enabled=!reduced;
   if(T.PCFSoftShadowMap)renderer.shadowMap.type=T.PCFSoftShadowMap;

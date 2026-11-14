@@ -1,5 +1,5 @@
-const VERSION='gambit-forge-v21';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/icon-180.png'];
+const VERSION='gambit-forge-v22';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/icon-180.png','./vendor/three.min.js','./gf3d.js'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(VERSION).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))))});
 self.addEventListener('activate',e=>{e.waitUntil((async()=>{
  const ks=await caches.keys();const hadOld=ks.some(k=>k!==VERSION);await Promise.all(ks.filter(k=>k!==VERSION).map(k=>caches.delete(k)));
